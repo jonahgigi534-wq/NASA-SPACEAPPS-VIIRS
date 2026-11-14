@@ -48,7 +48,7 @@ import pyarrow.parquet as pq
 
 REPO = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.environ.get("APP_DATA_DIR", REPO / "data" / "app"))
-CACHE_DIR = REPO / "data" / "cache" / "live"
+CACHE_DIR = Path(os.environ.get("LIVE_CACHE_DIR", REPO / "data" / "cache" / "live"))
 
 API = "https://firms.modaps.eosdis.nasa.gov/api/area/csv"
 SOURCES = {                      # FIRMS source name -> (sensor, satellite)

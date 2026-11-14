@@ -8,7 +8,9 @@ Then open http://127.0.0.1:8000 (website) or http://127.0.0.1:8000/docs (try eve
 Data folder: env var APP_DATA_DIR (default data/app). If it's empty, make fake data first:
     python scripts/make_synthetic_app_data.py
 Deployed: set APP_DATA_URL (Hugging Face dataset URL ending in /resolve/main/) and the 4 data
-files are downloaded into APP_DATA_DIR at startup if missing (see "Deploy" below).
+files are downloaded into APP_DATA_DIR at startup if missing (see "Deploy" below). Set
+FIRMS_MAP_KEY and the live FIRMS feed refreshes in the background at most once an hour
+(LIVE_REFRESH=0 turns it off; LIVE_CACHE_DIR moves its cache). GET /api/status shows both.
 
 How a request works:
   1. parse the area (bbox / polygon / point + radius) and find the 0.1 degree cells inside it
@@ -310,6 +312,78 @@ def start_data_download():
     return t
 
 
+# ---- Live FIRMS feed, refreshed in the background at most once an hour -----------------------
+# Needs FIRMS_MAP_KEY in the environment (a Space secret). pipeline/live.py writes the live_*
+# files atomically and get_store() reloads when they change, so visitors just see fresher data.
+# A failed refresh is logged and ignored: the site keeps serving the last good data.
+
+LIVE_REFRESH_SECONDS = 3600
+_live = {"active": False, "last_ok": None, "last_error": None, "runs": 0}
+_live_stop = threading.Event()
+
+
+def _firms_key():
+    # FIRMS_MAP_KEY is the documented name; FIRMS_MAPKEY is accepted in case the secret is
+    # typed without the underscore.
+    return (os.environ.get("FIRMS_MAP_KEY") or os.environ.get("FIRMS_MAPKEY") or "").strip()
+
+
+def _seconds_since_last_refresh(data_dir):
+    p = Path(data_dir) / "live_coverage.json"
+    if not p.exists():
+        return None
+    import time
+    return time.time() - p.stat().st_mtime
+
+
+def refresh_live_once(data_dir):
+    """Run pipeline/live.py once. Never raises: errors are logged and remembered."""
+    from datetime import datetime, timezone
+    _live["runs"] += 1
+    try:
+        from pipeline import live
+        live.run(_firms_key(), data_dir)
+        _live["last_ok"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        _live["last_error"] = None
+        print("[live] refresh finished", flush=True)
+    except BaseException as ex:          # incl. SystemExit from inside the pipeline
+        _live["last_error"] = f"{type(ex).__name__}: {ex}"
+        print(f"[live] refresh FAILED, keeping the last good data: {_live['last_error']}",
+              flush=True)
+
+
+def _live_loop(data_dir):
+    _live["active"] = True
+    try:
+        # wait for the startup download, if any
+        while (_download["active"] or missing_data_files(data_dir)) and not _live_stop.is_set():
+            if _download["error"]:
+                print("[live] no app data, so no live refresh", flush=True)
+                return
+            _live_stop.wait(5)
+        # restarted soon after a refresh? wait out the rest of the hour first
+        age = _seconds_since_last_refresh(data_dir)
+        if age is not None and age < LIVE_REFRESH_SECONDS:
+            _live_stop.wait(LIVE_REFRESH_SECONDS - age)
+        while not _live_stop.is_set():
+            refresh_live_once(data_dir)
+            _live_stop.wait(LIVE_REFRESH_SECONDS)
+    finally:
+        _live["active"] = False
+
+
+def start_live_refresh():
+    """Called at startup: refresh the live feed hourly if a FIRMS key is configured.
+    Set LIVE_REFRESH=0 to turn it off (e.g. when running locally)."""
+    if not _firms_key() or os.environ.get("LIVE_REFRESH", "1") == "0":
+        return None
+    data_dir = os.environ.get("APP_DATA_DIR", REPO / "data" / "app")
+    _live_stop.clear()
+    t = threading.Thread(target=_live_loop, args=(data_dir,), daemon=True, name="live-refresh")
+    t.start()
+    return t
+
+
 def check_download_status():
     """Raise DataMissing with a friendly message while data is downloading or if it failed."""
     if _download["active"]:
@@ -455,7 +529,9 @@ def ctx_for(q: Query):
 @asynccontextmanager
 async def lifespan(_app):
     start_data_download()          # no-op unless APP_DATA_URL is set and files are missing
+    start_live_refresh()           # no-op unless FIRMS_MAP_KEY is set
     yield
+    _live_stop.set()
 
 
 app = FastAPI(title="FireBridge API",
@@ -496,6 +572,15 @@ def regions():
                          "start": r["start"].isoformat(),
                          "archive_end": r["archive_end"].isoformat(),
                          "live_end": r["end"].isoformat()} for r in s.regions.values()]}
+
+
+@app.get("/api/status")
+def status():
+    """Deploy status: data download progress and the last live-feed refresh (not in the
+    contract; for checking the deployed site)."""
+    return clean({"download": dict(_download), "live_refresh": {
+        **_live, "enabled": bool(_firms_key()) and os.environ.get("LIVE_REFRESH", "1") != "0",
+        "every_seconds": LIVE_REFRESH_SECONDS}})
 
 
 @app.post("/api/summary")
@@ -660,7 +745,7 @@ def methods_page():
 if STATIC_DIR.is_dir():
     app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 else:
-    @app.get("/", include_in_schema=False)
+    @app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
     def no_website_yet():
         return {"message": "FireBridge API is running. The website (app/static/) isn't built "
                            "yet; try /docs to explore the API."}

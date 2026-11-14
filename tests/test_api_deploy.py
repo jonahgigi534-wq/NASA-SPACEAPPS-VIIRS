@@ -112,3 +112,96 @@ def test_no_download_without_app_data_url(tmp_path, monkeypatch):
     assert main.start_data_download() is None
     r = TestClient(main.app).get("/api/regions")
     assert r.status_code == 503 and "App data not found" in r.json()["error"]
+
+
+# ---- hourly live refresh -----------------------------------------------------------------------
+
+@pytest.fixture
+def live_ready_dir(tmp_path, monkeypatch):
+    """App data that stops at nrt_end (like Track A's), so the live feed has days to add."""
+    import make_synthetic_app_data as synth
+    from pipeline import live
+    d = tmp_path / "app"
+    synth.build(str(d), scale=0.1, end="2026-10-31")
+    monkeypatch.setattr(live, "CACHE_DIR", tmp_path / "cache")
+    monkeypatch.setattr(live, "SECONDS_BETWEEN_CALLS", 0)
+    monkeypatch.setenv("APP_DATA_DIR", str(d))
+    monkeypatch.setenv("FIRMS_MAP_KEY", "TESTKEY123")
+    main._live.update(active=False, last_ok=None, last_error=None, runs=0)
+    yield d
+    main._live_stop.set()
+
+
+def test_refresh_success_shows_up_in_api(live_ready_dir, monkeypatch):
+    sys.path.insert(0, str(REPO / "tests"))
+    import test_api_live as tl
+    from pipeline import live
+    real_run = live.run
+    monkeypatch.setattr(live, "run", lambda key, data_dir: real_run(
+        key, data_dir, client=httpx.Client(transport=httpx.MockTransport(tl.fake_firms([]))),
+        today=tl.TODAY))
+    client = TestClient(main.app)
+    assert client.get("/api/regions").json()["regions"][0]["live_end"] == "2026-10-31"
+    main.refresh_live_once(live_ready_dir)
+    assert main._live["last_error"] is None and main._live["last_ok"]
+    assert client.get("/api/regions").json()["regions"][0]["live_end"] == "2026-11-13"
+
+
+@pytest.mark.parametrize("boom", [RuntimeError("FIRMS exploded"), SystemExit("bad key")])
+def test_failed_refresh_never_takes_the_site_down(live_ready_dir, monkeypatch, boom):
+    from pipeline import live
+
+    def fail(key, data_dir):
+        raise boom
+    monkeypatch.setattr(live, "run", fail)
+    client = TestClient(main.app)
+    before = client.post("/api/summary", json={"area": {"type": "bbox", "bbox": [-100, 30, -96, 33]}})
+    main.refresh_live_once(live_ready_dir)                  # must not raise
+    assert "FIRMS exploded" in main._live["last_error"] or "bad key" in main._live["last_error"]
+    after = client.post("/api/summary", json={"area": {"type": "bbox", "bbox": [-100, 30, -96, 33]}})
+    assert before.status_code == after.status_code == 200
+    assert before.json() == after.json()                   # same last-good data
+    assert client.get("/api/status").json()["live_refresh"]["last_error"]
+
+
+def count_runs(monkeypatch):
+    runs = []
+    monkeypatch.setattr(main, "refresh_live_once", lambda d: runs.append(time.time()))
+    return runs
+
+
+def test_loop_refreshes_on_its_interval(live_ready_dir, monkeypatch):
+    runs = count_runs(monkeypatch)
+    monkeypatch.setattr(main, "LIVE_REFRESH_SECONDS", 0.2)
+    t = main.start_live_refresh()
+    time.sleep(0.9)
+    main._live_stop.set()
+    t.join(2)
+    assert 3 <= len(runs) <= 6                            # every 0.2 s, not in a tight loop
+
+
+def test_loop_runs_once_then_waits_an_hour(live_ready_dir, monkeypatch):
+    runs = count_runs(monkeypatch)
+    t = main.start_live_refresh()
+    time.sleep(0.5)
+    main._live_stop.set()
+    t.join(2)
+    assert len(runs) == 1
+
+
+def test_quick_restart_does_not_refetch(live_ready_dir, monkeypatch):
+    (live_ready_dir / "live_coverage.json").write_text("{}")  # refreshed moments ago
+    runs = count_runs(monkeypatch)
+    t = main.start_live_refresh()
+    time.sleep(0.5)
+    main._live_stop.set()
+    t.join(2)
+    assert runs == []
+
+
+def test_no_refresh_without_key_or_when_disabled(live_ready_dir, monkeypatch):
+    monkeypatch.delenv("FIRMS_MAP_KEY")
+    assert main.start_live_refresh() is None
+    monkeypatch.setenv("FIRMS_MAP_KEY", "x")
+    monkeypatch.setenv("LIVE_REFRESH", "0")
+    assert main.start_live_refresh() is None
