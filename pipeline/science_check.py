@@ -286,6 +286,8 @@ def check_methods(rep, get):
                   f"HTTP {r.status_code}", "HTTP 200")
         return
     text = re.sub(r"<[^>]+>", " ", r.text)
+    # identifiers, not results: DOIs, product versions (MCD12Q1.061), "Collection 6.1"
+    text = re.sub(r"10\.\d{4,}/\S+|\b[A-Za-z0-9_]+\.\d{3}\b|Collection \d+(?:\.\d+)?", " ", text)
     allowed = metric_numbers()
     for num in sorted(set(re.findall(r"\d{1,3}(?:,\d{3})+|\d+\.\d+", text))):
         rep.check("GET /methods", f"number {num}", num,

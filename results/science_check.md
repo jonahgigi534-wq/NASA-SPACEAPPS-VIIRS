@@ -1,14 +1,8 @@
 # Science check of the app (local, in-process on data/app)
 
-105 checks, **1 mismatches**. Expected values are direct DuckDB queries on data/app/ (`python -m pipeline.science_check`).
+133 checks, **0 mismatches**. Expected values are direct DuckDB queries on data/app/ (`python -m pipeline.science_check`).
 
 Presets checked: West Texas and northern Mexico, Apr-Jul 2011; Rondonia / Bolivia border, Nov-Dec 2023; Northern Australia savannas, Aug-Sep 2011.
-
-## Mismatches (for Track B / C)
-
-| Endpoint | Field | App | Expected |
-|---|---|---|---|
-| GET /methods | page exists (Track C builds app/static/methods.html) | HTTP 404 | HTTP 200 |
 
 ## All checks
 
@@ -118,4 +112,32 @@ Presets checked: West Texas and northern Mexico, Apr-Jul 2011; Rondonia / Bolivi
 | POST /api/calendar day, mode modis_only [australia] 2020-08-22 | value on a missing day | None | None | yes |
 | POST /api/calendar day, mode modis_only [australia] 2020-08-22 | missing | True | True | yes |
 | POST /api/summary, mode modis_only [australia] 2020-08-19..2020-08-25 | missing_days | 7 | 7 | yes |
-| GET /methods | page exists (Track C builds app/static/methods.html) | HTTP 404 | HTTP 200 | **NO** |
+| GET /methods | number 0.86 | 0.86 | 0.86 | yes |
+| GET /methods | number 0.88 | 0.88 | 0.88 | yes |
+| GET /methods | number 0.9774 | 0.9774 | 0.9774 | yes |
+| GET /methods | number 0.9775 | 0.9775 | 0.9775 | yes |
+| GET /methods | number 0.9855 | 0.9855 | 0.9855 | yes |
+| GET /methods | number 1,206 | 1,206 | 1,206 | yes |
+| GET /methods | number 1,212 | 1,212 | 1,212 | yes |
+| GET /methods | number 1,316 | 1,316 | 1,316 | yes |
+| GET /methods | number 1,389 | 1,389 | 1,389 | yes |
+| GET /methods | number 1,494 | 1,494 | 1,494 | yes |
+| GET /methods | number 1,540 | 1,540 | 1,540 | yes |
+| GET /methods | number 1,551 | 1,551 | 1,551 | yes |
+| GET /methods | number 1.18 | 1.18 | 1.18 | yes |
+| GET /methods | number 1.33 | 1.33 | 1.33 | yes |
+| GET /methods | number 1.79 | 1.79 | 1.79 | yes |
+| GET /methods | number 1.95 | 1.95 | 1.95 | yes |
+| GET /methods | number 2.83 | 2.83 | 2.83 | yes |
+| GET /methods | number 5.97 | 5.97 | 5.97 | yes |
+| GET /methods | number 589.93 | 589.93 | 589.93 | yes |
+| GET /methods | number 59.38 | 59.38 | 59.38 | yes |
+| GET /methods | number 60.32 | 60.32 | 60.32 | yes |
+| GET /methods | number 62,479 | 62,479 | 62,479 | yes |
+| GET /methods | number 63,146 | 63,146 | 63,146 | yes |
+| GET /methods | number 651.35 | 651.35 | 651.35 | yes |
+| GET /methods | number 659.69 | 659.69 | 659.69 | yes |
+| GET /methods | number 680.0 | 680.0 | 680.0 | yes |
+| GET /methods | number 738.73 | 738.73 | 738.73 | yes |
+| GET /methods | number 9.46 | 9.46 | 9.46 | yes |
+| GET /methods | number 9.96 | 9.96 | 9.96 | yes |
