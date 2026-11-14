@@ -12,14 +12,19 @@ and docs/CONTRACTS.md, independently of app/analytics.py:
     more than 20% missing -> unknown
   * "typical" = median of the same window in the baseline years 2003-2022
 
-  python -m pipeline.science_check                    # app in-process on data/app
+  python -m pipeline.science_check                    # app in-process on $APP_DATA_DIR
+  python -m pipeline.science_check --data-dir PATH    # same, on the data in PATH
   python -m pipeline.science_check --url https://...  # a running app (local or live)
+The data folder is --data-dir, else $APP_DATA_DIR (as the app reads it), else data/app. Before
+comparing anything, the app's /api/regions must agree with that folder's coverage.json; if not,
+the app is serving other data and the check stops (exit 2) instead of reporting false mismatches.
 Writes results/science_check.md and exits 1 if anything mismatches.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 from datetime import date, timedelta
 from pathlib import Path
@@ -28,7 +33,7 @@ import duckdb
 import numpy as np
 import pandas as pd
 
-APP = Path("data/app")
+APP = Path("data/app")   # default; main() uses --data-dir / $APP_DATA_DIR like the app does
 PRESETS = Path("docs/presets.json")
 METRICS = Path("results/metrics.json")
 OUT = Path("results/science_check.md")
@@ -184,12 +189,15 @@ def check_summary(rep, post, ex, p, s):
     archive_end = date.fromisoformat(ex.cov[p["region"]]["archive_end"])
     rep.check(where, "key_figures.total_hotspots", kf["total_hotspots"], float(np.nansum(w)), 1)
     rep.check(where, "key_figures.pct_of_median", kf["pct_of_median"], pct(value, med), PCT_TOL)
-    # the preset button's "why" text must quote the same % the app then shows
+    # the preset button's "why" text must quote the same % the app then shows. It describes the
+    # real data it was built from, so only compare when the app's total matches that data.
     quoted = re.search(r"([\d,]+)% of the 2003-2022 median", p["why"])
-    rep.check(f"docs/presets.json [{p['name']}]", "why: % of median vs app",
-              kf["pct_of_median"], float(quoted.group(1).replace(",", "")) if quoted else None,
-              PCT_TOL)
-    rep.check(where, "key_figures.busiest_month", kf["busiest_month"], str(m["value"].idxmax()))
+    total = re.search(r"([\d,]+) harmonized hotspots", p["why"])
+    if quoted and total and abs(float(total.group(1).replace(",", "")) - kf["total_hotspots"]) <= 1:
+        rep.check(f"docs/presets.json [{p['name']}]", "why: % of median vs app",
+                  kf["pct_of_median"], float(quoted.group(1).replace(",", "")), PCT_TOL)
+    busiest = str(m["value"].idxmax()) if m["value"].max() > 0 else None   # no fire: none
+    rep.check(where, "key_figures.busiest_month", kf["busiest_month"], busiest)
     rep.check(where, "missing_days", got["missing_days"], int(w.isna().sum()))
     rep.check(where, "provisional_days", got["provisional_days"],
               int((w.index.date > archive_end).sum()))
@@ -314,13 +322,44 @@ def pick_presets(n: int = 3) -> list[dict]:
     return out[:n]
 
 
+def data_dir_from(arg: str | None) -> Path:
+    """--data-dir, else $APP_DATA_DIR (what app/main.py reads), else data/app."""
+    path = Path(arg or os.environ.get("APP_DATA_DIR") or APP)
+    if arg:
+        os.environ["APP_DATA_DIR"] = str(path)   # the in-process app reads the same folder
+    if not (path / "coverage.json").exists():
+        raise SystemExit(f"No app data in {path} (coverage.json missing).")
+    return path
+
+
+def same_data_or_stop(get, ex: Expected, data_dir: Path) -> None:
+    """Stop unless the app serves the data we compute from (region list, start, archive_end)."""
+    r = get("/api/regions")
+    if r.status_code != 200:
+        raise SystemExit(f"/api/regions -> HTTP {r.status_code}; is the app running with data?")
+    app_regions = {x["id"]: x for x in r.json()["regions"]}
+    diffs = [f"{reg}: app {app_regions.get(reg, {}).get(k)} vs {data_dir} {cov[k]}"
+             for reg, cov in ex.cov.items() for k in ("start", "archive_end")
+             if app_regions.get(reg, {}).get(k) != cov[k]]
+    if set(app_regions) != set(ex.cov):
+        diffs.append(f"regions: app {sorted(app_regions)} vs {data_dir} {sorted(ex.cov)}")
+    if diffs:
+        raise SystemExit("The app is serving different data than " + str(data_dir) + ":\n  "
+                         + "\n  ".join(diffs) + "\nPoint --data-dir (or APP_DATA_DIR) at the "
+                         "folder the app uses, then rerun. Nothing was compared.")
+
+
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--url", help="base URL of a running app (default: run it in-process)")
+    ap.add_argument("--data-dir", help="app data folder (default: $APP_DATA_DIR, else data/app)")
     args = ap.parse_args(argv)
+    data_dir = data_dir_from(args.data_dir)
     post, get = api_client(args.url)
-    ex, rep = Expected(), Report()
+    ex, rep = Expected(data_dir), Report()
+    same_data_or_stop(get, ex, data_dir)
     presets = pick_presets()
+
     def guarded(fn, *a):
         try:
             fn(*a)
@@ -338,7 +377,7 @@ def main(argv=None) -> None:
     for p in presets:
         guarded(check_missing, rep, post, ex, [p])
     check_methods(rep, get)
-    write_report(rep, presets, args.url or "local, in-process on data/app")
+    write_report(rep, presets, args.url or f"local, in-process on {data_dir.as_posix()}")
     print(f"{len(rep.rows)} checks, {len(rep.failures)} mismatches -> {OUT}")
     for r in rep.failures:
         print(f"  MISMATCH {r['where']} | {r['field']}: app {r['app']} vs expected {r['expected']}")

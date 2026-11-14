@@ -149,7 +149,7 @@ def build() -> list[dict]:
     con = duckdb.connect()
     con.execute("SET TimeZone = 'UTC'")
     boxes = region_bboxes()
-    expected = Expected()
+    expected = Expected(CELLS.parent)   # always our built data, whatever APP_DATA_DIR says
     regional =with_median(monthly(con), ["region"])
     blocks = with_median(monthly(con, by_block=True), ["region", "by", "bx"])
     presets = []

@@ -1,6 +1,6 @@
 # Science check of the app (local, in-process on data/app)
 
-105 checks, **2 mismatches**. Expected values are direct DuckDB queries on data/app/ (`python -m pipeline.science_check`).
+105 checks, **1 mismatches**. Expected values are direct DuckDB queries on data/app/ (`python -m pipeline.science_check`).
 
 Presets checked: West Texas and northern Mexico, Apr-Jul 2011; Rondonia / Bolivia border, Nov-Dec 2023; Northern Australia savannas, Aug-Sep 2011.
 
@@ -8,7 +8,6 @@ Presets checked: West Texas and northern Mexico, Apr-Jul 2011; Rondonia / Bolivi
 
 | Endpoint | Field | App | Expected |
 |---|---|---|---|
-| POST /api/summary bbox [125.0, -20.0, 143.0, -12.0] 2020-08-19..2020-08-25 mode modis_only | HTTP status | 500 (Internal Server Error) | 200 |
 | GET /methods | page exists (Track C builds app/static/methods.html) | HTTP 404 | HTTP 200 |
 
 ## All checks
@@ -118,5 +117,5 @@ Presets checked: West Texas and northern Mexico, Apr-Jul 2011; Rondonia / Bolivi
 | POST /api/summary, mode harmonized [australia] 2004-12-22..2004-12-28 | missing_days | 1 | 1 | yes |
 | POST /api/calendar day, mode modis_only [australia] 2020-08-22 | value on a missing day | None | None | yes |
 | POST /api/calendar day, mode modis_only [australia] 2020-08-22 | missing | True | True | yes |
-| POST /api/summary bbox [125.0, -20.0, 143.0, -12.0] 2020-08-19..2020-08-25 mode modis_only | HTTP status | 500 (Internal Server Error) | 200 | **NO** |
+| POST /api/summary, mode modis_only [australia] 2020-08-19..2020-08-25 | missing_days | 7 | 7 | yes |
 | GET /methods | page exists (Track C builds app/static/methods.html) | HTTP 404 | HTTP 200 | **NO** |
