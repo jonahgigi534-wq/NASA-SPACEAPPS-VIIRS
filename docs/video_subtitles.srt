@@ -1,0 +1,31 @@
+1
+00:00:00,000 --> 00:00:04,000
+MODIS is ending. VIIRS counts don't match.
+
+2
+00:00:04,000 --> 00:00:09,000
+Raw VIIRS jumps in 2012. Ours doesn't.
+
+3
+00:00:09,000 --> 00:00:12,000
+Beats the simple fix on unseen years.
+
+4
+00:00:12,000 --> 00:00:15,000
+Pick any area, any dates.
+
+5
+00:00:15,000 --> 00:00:18,000
+A burning calendar from 2001 to today.
+
+6
+00:00:18,000 --> 00:00:21,000
+This month versus the historical median.
+
+7
+00:00:21,000 --> 00:00:24,000
+Download every hotspot as CSV.
+
+8
+00:00:24,000 --> 00:00:27,000
+FireBridge. Built on NASA FIRMS data.
