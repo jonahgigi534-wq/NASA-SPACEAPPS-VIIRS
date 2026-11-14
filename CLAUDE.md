@@ -69,17 +69,30 @@ Each zip holds `fire_archive_*.csv` (standard processing, science quality, throu
   `VIIRS_NOAA21_NRT`, `MODIS_NRT` fills the gap from the end of the zips' NRT data to today.
   Cache responses to disk; respect the rate limit; app must still work if the API is down.
 
-MODIS columns (verified, texas): latitude, longitude, brightness, scan, track, acq_date,
-acq_time, satellite (T/A), instrument, confidence (0–100), version, bright_t31, frp, daynight,
-type. VIIRS: bright_ti4/bright_ti5 instead of brightness/bright_t31; confidence l/n/h. Check
-real headers in code.
+Columns (verified on all 9 zips, A1): latitude, longitude, brightness, scan, track, acq_date,
+acq_time (HHMM UTC), satellite, instrument, confidence, version, bright_t31, frp, daynight,
+type. **VIIRS files use the same names** (`brightness`/`bright_t31`, not bright_ti4/ti5).
+`satellite` codes: MODIS `Terra`/`Aqua`; VIIRS `SNPP`, `N20` (mapped to `S-NPP`, `NOAA-20`).
+Confidence: MODIS 0–100, VIIRS l/n/h. **NRT files have no `type` column.**
 
 `type`: 0 vegetation fire, 1 volcano, 2 other static land source, 3 offshore. **Keep type 0.**
-(Texas MODIS: ~94% type 0.) NRT files may lack `type`; if so, drop detections that fall on
-static-source cells identified from the archive (cells with type 2 detections) and say so.
+NRT rule (implemented in `pipeline/ingest.py`): drop NRT rows dated on/before that satellite's
+archive end (archive wins), and drop NRT rows on **static-source cells** = 0.01° cells with any
+type 1/2/3 detection in that region's archive (either sensor). Counts are in
+`data/processed/ingest_report.json`. Ingest output: `data/processed/fires_<region>_<modis|viirs>.parquet`
+with columns region, sensor, satellite, datetime_utc, acq_date, lat, lon, frp, confidence_class,
+confidence_raw, daynight, is_provisional.
 
 Coverage: Terra from 2000-11, Aqua from 2002-07; S-NPP 2012-01-20 → 2026-11-02 (FIRMS form);
-NOAA-20 from 2018-04-01. NASA plans to end Terra MODIS collection Jan 2027 and Aqua ~Sep 2027.
+NOAA-20 from 2018-04-01.
+**Verified in our zips (A1, all 3 regions):** MODIS archive 2001-01-01 (Aqua 2002-07-04) →
+**2026-08-31**, MODIS NRT 2026-09-01 → 2026-11-01. VIIRS (S-NPP from 2012-01-20, NOAA-20 from
+2018-04-01) archive → **2026-07-31**, VIIRS NRT 2026-08-01 → 2026-11-01. So the calibration/
+validation archive window ends 2026-07-31 for the pair. No NRT/archive overlap, no null keys.
+Rows kept (type 0 + NRT): australia 20.46 M, amazon 19.64 M, texas 2.05 M (Australia slightly
+exceeds Amazon because of VIIRS; Amazon is larger in MODIS). Non-type-0 share removed from the
+archive: texas MODIS 6.2% / VIIRS 24.6% (Permian gas flares, type 2), amazon 2.2% / 0.2%,
+australia 0.5% / 0.2%. NASA plans to end Terra MODIS collection Jan 2027 and Aqua ~Sep 2027.
 
 ### 3.2 Optional extras (use if present; the project must work without them)
 - `data/raw/appeears/<region>/`: MCD12Q1.061 LC_Type1 (yearly land cover) and MCD64A1.061
