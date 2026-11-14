@@ -143,6 +143,15 @@ same-overpass only.
 - Combining sensors in the final record: before VIIRS → MODIS (Terra+Aqua); VIIRS era →
   harmonized VIIRS (S-NPP + NOAA-20 + NOAA-21 where available, de-duplicated so overlapping
   satellites aren't double-counted; document the rule). Show sensor source per day.
+- **Implemented (A3)**: `python -m pipeline.landcover` → `pipeline.harmonize` → `pipeline.validate`
+  → `pipeline.build_app_data` → `pipeline.validate --continuity`. Winner: **B_qm** (quantile
+  mapping per region × land-cover group × day/night, rescaled so training totals match), see
+  `results/metrics.json`. The fitted curve maps a 0.25° cell-month VIIRS count (scaled to a full
+  month) to an Aqua-equivalent count, × (Terra+Aqua)/Aqua (2003–2018, per region × day/night ×
+  calendar month) to reach the MODIS-era Terra+Aqua scale. Each VIIRS detection then carries
+  weight = that factor; **de-duplication rule: on a day when k VIIRS satellites had data, each
+  detection's weight is divided by k**, so the harmonized value is the average of what S-NPP,
+  NOAA-20 (and NOAA-21) each say. Hotspot weights sum exactly to `mec`. FRP uses one global ratio.
 
 ### 4.5 Validation (what judges check)
 - **Temporal holdout**: fit 2012–2018, test 2019 → end.

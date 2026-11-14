@@ -1,0 +1,190 @@
+{
+ "winner": "B_qm",
+ "baseline_years": [
+  2012,
+  2018
+ ],
+ "test_years": [
+  2019,
+  2026
+ ],
+ "overall": {
+  "holdout": {
+   "raw_viirs": {
+    "r2": -60.3163,
+    "bias_pct": 659.69,
+    "rmse": 63146.415,
+    "r": 0.9888
+   },
+   "global_ratio": {
+    "r2": 0.9774,
+    "bias_pct": -0.86,
+    "rmse": 1212.081,
+    "r": 0.9888
+   },
+   "harmonized": {
+    "r2": 0.9855,
+    "bias_pct": -0.88,
+    "rmse": 971.164,
+    "r": 0.9945
+   }
+  },
+  "transfer_noaa20": {
+   "raw_viirs": {
+    "r2": -59.378,
+    "bias_pct": 651.35,
+    "rmse": 62479.15,
+    "r": 0.9888
+   },
+   "global_ratio": {
+    "r2": 0.9775,
+    "bias_pct": -1.95,
+    "rmse": 1206.345,
+    "r": 0.9888
+   },
+   "harmonized": {
+    "r2": 0.988,
+    "bias_pct": -2.83,
+    "rmse": 881.509,
+    "r": 0.9946
+   }
+  }
+ },
+ "regions": {
+  "amazon": {
+   "holdout": {
+    "raw_viirs": {
+     "r2": -55.2177,
+     "bias_pct": 589.93,
+     "rmse": 87215.957,
+     "r": 0.9953
+    },
+    "global_ratio": {
+     "r2": 0.9857,
+     "bias_pct": -9.96,
+     "rmse": 1389.299,
+     "r": 0.9953
+    },
+    "harmonized": {
+     "r2": 0.9835,
+     "bias_pct": -1.18,
+     "rmse": 1494.148,
+     "r": 0.995
+    }
+   },
+   "transfer_noaa20": {
+    "raw_viirs": {
+     "r2": -53.43,
+     "bias_pct": 576.58,
+     "rmse": 84575.92,
+     "r": 0.9949
+    },
+    "global_ratio": {
+     "r2": 0.9819,
+     "bias_pct": -11.7,
+     "rmse": 1540.259,
+     "r": 0.9949
+    },
+    "harmonized": {
+     "r2": 0.9868,
+     "bias_pct": -3.47,
+     "rmse": 1315.827,
+     "r": 0.995
+    }
+   }
+  },
+  "australia": {
+   "holdout": {
+    "raw_viirs": {
+     "r2": -131.8253,
+     "bias_pct": 738.73,
+     "rmse": 65743.58,
+     "r": 0.9836
+    },
+    "global_ratio": {
+     "r2": 0.926,
+     "bias_pct": 9.46,
+     "rmse": 1551.428,
+     "r": 0.9836
+    },
+    "harmonized": {
+     "r2": 0.9823,
+     "bias_pct": -1.33,
+     "rmse": 759.061,
+     "r": 0.9917
+    }
+   },
+   "transfer_noaa20": {
+    "raw_viirs": {
+     "r2": -135.5268,
+     "bias_pct": 727.23,
+     "rmse": 67259.595,
+     "r": 0.9844
+    },
+    "global_ratio": {
+     "r2": 0.942,
+     "bias_pct": 7.96,
+     "rmse": 1386.721,
+     "r": 0.9844
+    },
+    "harmonized": {
+     "r2": 0.9825,
+     "bias_pct": -2.97,
+     "rmse": 761.907,
+     "r": 0.9919
+    }
+   }
+  },
+  "texas": {
+   "holdout": {
+    "raw_viirs": {
+     "r2": -101.7972,
+     "bias_pct": 680.0,
+     "rmse": 5793.76,
+     "r": 0.8997
+    },
+    "global_ratio": {
+     "r2": 0.7846,
+     "bias_pct": 1.79,
+     "rmse": 265.221,
+     "r": 0.8997
+    },
+    "harmonized": {
+     "r2": 0.9362,
+     "bias_pct": 5.97,
+     "rmse": 144.315,
+     "r": 0.9731
+    }
+   },
+   "transfer_noaa20": {
+    "raw_viirs": {
+     "r2": -107.2886,
+     "bias_pct": 698.91,
+     "rmse": 5830.377,
+     "r": 0.8966
+    },
+    "global_ratio": {
+     "r2": 0.7757,
+     "bias_pct": 4.26,
+     "rmse": 265.35,
+     "r": 0.8966
+    },
+    "harmonized": {
+     "r2": 0.9386,
+     "bias_pct": 5.17,
+     "rmse": 138.826,
+     "r": 0.9729
+    }
+   }
+  }
+ },
+ "notes": [
+  "Scores compare monthly regional totals of Aqua-equivalent counts against real MODIS Aqua, on test data the models never saw (2019 onward), and on NOAA-20, which was never used in fitting.",
+  "'overall' pools all region-months; because regions differ a lot in size this inflates r2, so read the per-region numbers too.",
+  "Winner B_qm chosen by lowest mean normalized RMSE across regions on the holdout (0.169 vs global ratio 0.259).",
+  "From 2022 Terra and Aqua drift off their original overpass times (results/overpass_times.md), so the MODIS reference itself changes; holdout scores for 2019-2021 and 2022+ are reported separately in results/metrics_detail.json.",
+  "Land-cover groups (MCD12Q1) used for: amazon, australia, texas.",
+  "The harmonized record is on the Terra+Aqua scale: Aqua-equivalent counts are multiplied by the 2003-2018 (Terra+Aqua)/Aqua ratio per region, day/night and calendar month.",
+  "Harmonized FRP (mefrp) uses one global FRP ratio and is not separately validated."
+ ]
+}

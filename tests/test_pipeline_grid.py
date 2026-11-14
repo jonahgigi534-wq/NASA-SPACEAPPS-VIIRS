@@ -2,6 +2,7 @@
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -93,11 +94,15 @@ def test_satellite_not_counted_before_it_launched(processed):
 
 # ---------------------------------------------------------------- build_app_data.py
 
+FACTOR = 0.5   # each VIIRS detection = half a MODIS-scale hotspot (stand-in for the fitted model)
+
+
 @pytest.fixture
 def app(processed):
     out = processed / "app"
-    ratio = build_app_data.build(["texas"], processed=processed, app_dir=out)
-    return out, ratio
+    build_app_data.build(["texas"], processed=processed, app_dir=out,
+                         factor_fn=lambda cm: np.full(len(cm), FACTOR), frp_ratio=1.0)
+    return out, FACTOR
 
 
 def test_app_files_match_contract_schema(app):
@@ -110,18 +115,17 @@ def test_app_files_match_contract_schema(app):
         assert key in cov
 
 
-def test_placeholder_harmonization(app):
-    out, ratio = app
-    # S-NPP / (Terra + Aqua) on days all three had data (8 normal days + the quiet day;
-    # the day Terra was missing is excluded): (8 x 80 + 8) / (8 x 40 + 2)
-    expected = (8 * 80 + 8) / (8 * 40 + 2)
-    assert ratio["count"] == pytest.approx(expected)
+def test_harmonization_rules(app):
+    out, factor = app
     cells = pd.read_parquet(out / "cells_daily.parquet")
     modis_era = cells[cells["date"] < date(2012, 1, 20)]
     assert (modis_era["source"] == "MODIS").all() and (modis_era["mec"] == modis_era["modis_n"]).all()
     viirs_era = cells[cells["date"] >= date(2012, 1, 20)]
     assert (viirs_era["source"] == "VIIRS").all()
-    assert viirs_era["mec"].to_numpy() == pytest.approx((viirs_era["viirs_n"] / expected).to_numpy(), rel=1e-5)
+    # one VIIRS satellite here, so viirs_n = raw count and mec = factor x viirs_n
+    assert viirs_era["mec"].to_numpy() == pytest.approx((viirs_era["viirs_n"] * factor).to_numpy(), rel=1e-5)
+    # every S-NPP detection exactly once: 8 normal days x 80 + the Terra-gap day 80 + quiet day 8
+    assert viirs_era["viirs_n"].sum() == 8 * 80 + 80 + 8
 
 
 def test_hotspot_weights_add_up_to_mec(app):
