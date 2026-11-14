@@ -472,7 +472,7 @@ def export_series(q: Query):
     for col in ("pct_of_median",):
         df[col] = df[col].astype("Int64")
     name = f"firebridge_series_{q.mode}_{start}_{end}.csv"
-    return Response(df.to_csv(index=False), media_type="text/csv",
+    return Response(df.to_csv(index=False, lineterminator="\n"), media_type="text/csv",
                     headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 
@@ -523,12 +523,12 @@ def export_hotspots(q: Query):
                 df = batch.to_pandas()
                 if sent + len(df) > HOTSPOT_ROW_CAP:
                     df = df.iloc[:HOTSPOT_ROW_CAP - sent]
-                    yield df.to_csv(index=False, header=header)
+                    yield df.to_csv(index=False, header=header, lineterminator="\n")
                     yield (f"# Only the first {HOTSPOT_ROW_CAP:,} hotspots are included. "
                            "Pick a smaller area or a shorter date range to get them all.\n")
                     return
                 sent += len(df)
-                yield df.to_csv(index=False, header=header)
+                yield df.to_csv(index=False, header=header, lineterminator="\n")
                 header = False
             if header:   # no rows at all: still send the header line
                 yield "lat,lon,datetime_utc,satellite,sensor,frp,confidence,daynight,provisional,weight\n"
