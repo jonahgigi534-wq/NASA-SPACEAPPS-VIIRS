@@ -41,6 +41,8 @@ def fake_firms(calls):
         key, source, days, start = parts[4], parts[5], int(parts[7]), date.fromisoformat(parts[8])
         if key != KEY:
             return httpx.Response(400, text=f"Invalid MAP_KEY {key}.")
+        if not 1 <= days <= 5:                       # the real FIRMS limit (Nov 2026)
+            return httpx.Response(400, text="Invalid day range. Expects [1..5].")
         if "-65" in parts[6] or "120" in parts[6]:
             return httpx.Response(200, text="")      # no fires in the other regions
         lines = [MODIS_HEADER if source == "MODIS_NRT" else VIIRS_HEADER]
@@ -83,8 +85,8 @@ def test_live_files_and_harmonization(data_dir, capsys):
     assert cov["texas"]["live_start"] == "2026-11-01"
     assert cov["texas"]["live_end"] == "2026-11-13"
     assert cov["texas"]["viirs_count_factor"] == pytest.approx(1 / 3, rel=0.15)
-    # 13 days -> 2 chunks of <= 10 days, x 3 sources, x 3 regions
-    assert len(calls) == 2 * 3 * 3
+    # 13 days -> 3 chunks of <= 5 days, x 3 sources, x 3 regions
+    assert len(calls) == 3 * 3 * 3
     assert KEY not in capsys.readouterr().out
     assert all(KEY not in p.name for p in (live.CACHE_DIR).iterdir())
 
@@ -106,6 +108,13 @@ def test_live_files_and_harmonization(data_dir, capsys):
 
     miss = pd.read_parquet(data_dir / "live_missing_days.parquet")
     assert set(miss.loc[miss["date"] == VIIRS_GAP_DAY, "scope"]) == {"viirs_raw", "harmonized"}
+
+
+def test_adapts_when_firms_lowers_the_day_limit(data_dir, monkeypatch, capsys):
+    monkeypatch.setattr(live, "CHUNK_DAYS", 10)            # too big for the server
+    cov = run_live(data_dir, fake_firms([]))
+    assert cov["texas"]["live_end"] == "2026-11-13"
+    assert "allows 5 days per request" in capsys.readouterr().out
 
 
 def test_api_uses_live_data(data_dir, monkeypatch):

@@ -35,6 +35,7 @@ import argparse
 import io
 import json
 import os
+import re
 import sys
 import time
 from datetime import date, datetime, timedelta, timezone
@@ -55,7 +56,8 @@ SOURCES = {                      # FIRMS source name -> (sensor, satellite)
     "VIIRS_NOAA21_NRT": ("VIIRS", "NOAA-21"),
     "MODIS_NRT": ("MODIS", None),          # Terra or Aqua, read from the 'satellite' column
 }
-CHUNK_DAYS = 10            # the area API returns at most 10 days per request
+CHUNK_DAYS = 5             # the area API allows at most 5 days per request (Nov 2026; it was 10).
+                           # If FIRMS changes this again, run() reads the new limit from the error.
 MAX_DAYS = 60              # never reach back further than this
 SECONDS_BETWEEN_CALLS = 1.0
 RETRIES = 4
@@ -91,6 +93,13 @@ class FirmsError(Exception):
     pass
 
 
+class DayRangeError(FirmsError):
+    """FIRMS said 'Invalid day range. Expects [1..N].' -> retry with chunks of N days."""
+    def __init__(self, message, max_days):
+        super().__init__(message)
+        self.max_days = max_days
+
+
 def redact(text, key):
     return text.replace(key, "<MAP_KEY>") if key else text
 
@@ -123,6 +132,9 @@ def fetch_chunk(client, key, source, bbox, start, days, today):
                 time.sleep(SECONDS_BETWEEN_CALLS)
                 return ""
             problem = f"HTTP {r.status_code}: {redact(text.strip()[:200], key)}"
+            limit = re.search(r"day range.*?\[1\.\.(\d+)\]", text, re.I)
+            if limit:
+                raise DayRangeError(problem, int(limit.group(1)))
             if r.status_code in (400, 401, 403) or "invalid" in text.lower():
                 raise FirmsError(problem)                     # bad key / request: don't retry
         except FirmsError:
@@ -292,6 +304,7 @@ def run(key, data_dir=DATA_DIR, regions=None, max_days=MAX_DAYS, client=None, to
     today = today or datetime.now(timezone.utc).date()
     last_day = today - timedelta(days=1)          # today is still incomplete
     factors = harmonization_factors(data_dir)
+    chunk_days = CHUNK_DAYS
     own_client = client is None
     client = client or httpx.Client(follow_redirects=True)
 
@@ -311,10 +324,18 @@ def run(key, data_dir=DATA_DIR, regions=None, max_days=MAX_DAYS, client=None, to
             for source in SOURCES:
                 d = first
                 while d <= last_day:
-                    days = min(CHUNK_DAYS, (last_day - d).days + 1)
+                    days = min(chunk_days, (last_day - d).days + 1)
                     try:
                         text = fetch_chunk(client, key, source, bbox, d, days, today)
                         frames.append(parse_csv(text, source))
+                    except DayRangeError as ex:
+                        if ex.max_days < 1 or ex.max_days >= days:
+                            log(f"  {source} {d}: FAILED ({ex}).")
+                            fetched_to = min(fetched_to, d - timedelta(days=1))
+                            break
+                        log(f"  FIRMS now allows {ex.max_days} days per request; adjusting.")
+                        chunk_days = ex.max_days
+                        continue                      # retry the same start date, smaller chunk
                     except FirmsError as ex:
                         log(f"  {source} {d}: FAILED ({ex}). Keeping data only up to {d - timedelta(days=1)}.")
                         fetched_to = min(fetched_to, d - timedelta(days=1))
