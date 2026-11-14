@@ -132,9 +132,12 @@ class DataStore:
         data_end = {r: pd.Timestamp(v).date() for r, v in con.execute(
             "SELECT region, max(date) FROM cells GROUP BY region").fetchall()}
 
-        miss = con.execute(
-            f"SELECT region, date, scope FROM read_parquet('{_sql_path(d / 'missing_days.parquet')}')"
-        ).df()
+        miss_sql = f"SELECT region, date, scope FROM read_parquet('{_sql_path(d / 'missing_days.parquet')}')"
+        live_miss = d / "live_missing_days.parquet"
+        if self.live_end and live_miss.exists():
+            miss_sql += (f" UNION ALL SELECT region, date, scope FROM "
+                         f"read_parquet('{_sql_path(live_miss)}')")
+        miss = con.execute(miss_sql).df()
         self.missing = {}
         for (region, scope), g in miss.groupby(["region", "scope"]):
             self.missing[(region, scope)] = set(pd.to_datetime(g["date"]).dt.normalize())
@@ -181,23 +184,41 @@ class DataStore:
 
 
 _store = None
+_store_sig = None
 _store_lock = threading.Lock()
+WATCHED = DataStore.REQUIRED + ["live_cells_daily.parquet", "live_hotspots.parquet",
+                                "live_missing_days.parquet", "live_coverage.json"]
+
+
+def _signature(data_dir):
+    """File sizes + modification times, so we notice when data files are replaced."""
+    sig = []
+    for f in WATCHED:
+        p = Path(data_dir) / f
+        st = p.stat() if p.exists() else None
+        sig.append((f, st.st_mtime_ns if st else None, st.st_size if st else None))
+    return tuple(sig)
 
 
 def get_store():
-    """Load the data once, on first use (so importing this module never fails)."""
-    global _store
+    """Load the data on first use (so importing this module never fails), and reload it when
+    the files change (e.g. pipeline/live.py wrote fresh live data)."""
+    global _store, _store_sig
+    data_dir = os.environ.get("APP_DATA_DIR", REPO / "data" / "app")
+    sig = _signature(data_dir)
     with _store_lock:
-        if _store is None:
-            _store = DataStore(os.environ.get("APP_DATA_DIR", REPO / "data" / "app"))
+        if _store is None or sig != _store_sig:
+            _store = DataStore(data_dir)
+            _store_sig = sig
         return _store
 
 
 def reset_store():
     """Forget the loaded data (tests and the live-feed refresher use this)."""
-    global _store
+    global _store, _store_sig
     with _store_lock:
         _store = None
+        _store_sig = None
 
 
 # =============================================================================================
