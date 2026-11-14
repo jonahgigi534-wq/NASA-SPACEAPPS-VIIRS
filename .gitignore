@@ -1,0 +1,10 @@
+data/raw/*
+!data/raw/README.md
+data/processed/
+.env
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+data/app/*.parquet
+data/cache/
