@@ -18,7 +18,8 @@ pipeline.harmonize and validated by pipeline.validate.
   * viirs_n = raw VIIRS count averaged over the k satellites (same de-duplication, no scaling).
   * mefrp: MODIS FRP before 2012-01-20; after, VIIRS FRP x one global (Terra+Aqua)/S-NPP FRP
     ratio / k. (FRP is secondary and not separately validated.)
-  * provisional: the cell-day includes NRT detections from the sensor in use.
+  * provisional: the cell-day includes NRT detections from the sensor in use (or, when only
+    the other sensor saw fire there, from that sensor).
 
 missing_days scopes (from data/processed/daily_sat_<region>.parquet):
   modis_only  any operating MODIS satellite had no data that day (Terra+Aqua sum would be low)
@@ -148,7 +149,8 @@ def cells_sql(points: str) -> str:
         sum(weight)::FLOAT AS mec, sum(frp_w)::FLOAT AS mefrp,
         (count(*) FILTER (WHERE sensor = 'MODIS'))::FLOAT AS modis_n,
         sum(viirs_w)::FLOAT AS viirs_n, any_value(src) AS source,
-        coalesce(bool_or(provisional) FILTER (WHERE sensor = src), false) AS provisional
+        -- the source sensor decides; a cell-day with only other-sensor points uses those
+        coalesce(bool_or(provisional) FILTER (WHERE sensor = src), bool_or(provisional)) AS provisional
     FROM p GROUP BY region, r, c, date ORDER BY region, date, cell_id"""
 
 
@@ -220,6 +222,24 @@ def build_region_points(con, region: str, processed: Path, factor_fn: FactorFn, 
     return out
 
 
+def write_hotspots(con, points: list[Path], out: Path) -> None:
+    """hotspots.parquet ordered by region, datetime_utc. Each region is sorted on its own and
+    the sorted files are streamed into one, so peak memory is one region's sort, not all ~42 M rows."""
+    parts = []
+    for p in sorted(points):   # points_<region>.parquet -> alphabetical region order
+        part = p.with_name(p.stem + "_hotspots.parquet")
+        copy(con, f"SELECT {HOTSPOT_COLS} FROM read_parquet('{_p(p)}') ORDER BY datetime_utc", part)
+        parts.append(part)
+    files = "[" + ", ".join(f"'{_p(p)}'" for p in parts) + "]"
+    con.execute("SET preserve_insertion_order = true")   # stream the parts in order, no sort
+    try:
+        copy(con, f"SELECT * FROM read_parquet({files})", out)
+    finally:
+        con.execute("SET preserve_insertion_order = false")
+    for part in parts:
+        part.unlink()
+
+
 def build(regions, processed: Path = PROCESSED, app_dir: Path = APP_DIR,
           factor_fn: FactorFn | None = None, frp_ratio: float | None = None) -> str:
     """Write all four app files for `regions`. Returns the harmonization method used."""
@@ -234,8 +254,7 @@ def build(regions, processed: Path = PROCESSED, app_dir: Path = APP_DIR,
         masks.append(_p(processed / f"daily_sat_{region}.parquet"))
         coverage[region] = coverage_entry(con, fires_list(region, processed), bboxes[region])
     union = " UNION ALL ".join
-    copy(con, union(f"(SELECT {HOTSPOT_COLS} FROM read_parquet('{_p(p)}'))" for p in points)
-         + " ORDER BY region, datetime_utc", app_dir / "hotspots.parquet")
+    write_hotspots(con, points, app_dir / "hotspots.parquet")
     copy(con, union(f"({cells_sql(_p(p))})" for p in points), app_dir / "cells_daily.parquet")
     copy(con, union(f"({missing_sql(m)})" for m in masks), app_dir / "missing_days.parquet")
     write_coverage(coverage, app_dir)

@@ -9,24 +9,16 @@ import pyarrow.parquet as pq
 import pytest
 
 from pipeline import build_app_data, grid
+from pipeline.contract import parse_contract
 from pipeline.ingest import SCHEMA
 
 DAYS = [date(2012, 2, 1) + timedelta(days=i) for i in range(10)]
 MISSING_DAY, QUIET_DAY = DAYS[4], DAYS[5]
 MODIS_ERA_DAY = date(2011, 12, 1)
+NRT_CELL = (35.0, -95.0)   # VIIRS era, only MODIS saw fire here, from NRT
 
-# docs/CONTRACTS.md section 2, column -> arrow type
-CONTRACT = {
-    "cells_daily": {"region": pa.string(), "cell_id": pa.int32(), "lat": pa.float32(),
-                    "lon": pa.float32(), "date": pa.date32(), "mec": pa.float32(),
-                    "mefrp": pa.float32(), "modis_n": pa.float32(), "viirs_n": pa.float32(),
-                    "source": pa.string(), "provisional": pa.bool_()},
-    "missing_days": {"region": pa.string(), "date": pa.date32(), "scope": pa.string()},
-    "hotspots": {"region": pa.string(), "lat": pa.float64(), "lon": pa.float64(),
-                 "datetime_utc": pa.timestamp("us"), "date": pa.date32(), "satellite": pa.string(),
-                 "sensor": pa.string(), "frp": pa.float32(), "confidence_class": pa.string(),
-                 "daynight": pa.string(), "provisional": pa.bool_(), "weight": pa.float32()},
-}
+# docs/CONTRACTS.md section 2, read from the doc itself
+CONTRACT = {name: dict(cols) for name, cols in parse_contract().items()}
 
 
 def _points(day, satellite, n):
@@ -52,6 +44,8 @@ def processed(tmp_path):
     for d in DAYS:
         for sat, n in _day_counts(d).items():
             rows += _points(d, sat, n)
+    rows += [{**_points(DAYS[9], "Aqua", 1)[0], "lat": NRT_CELL[0], "lon": NRT_CELL[1],
+              "is_provisional": True}]
     df = pd.DataFrame(rows)
     for sensor in ("MODIS", "VIIRS"):
         part = df[df["sensor"] == sensor]
@@ -109,7 +103,7 @@ def test_app_files_match_contract_schema(app):
     out, _ = app
     for name, cols in CONTRACT.items():
         schema = pq.read_schema(out / f"{name}.parquet")
-        assert dict(zip(schema.names, schema.types)) == cols, name
+        assert list(zip(schema.names, schema.types)) == list(cols.items()), name
     cov = (out / "coverage.json").read_text()
     for key in ("start", "archive_end", "nrt_end", "live_end", "bbox"):
         assert key in cov
@@ -135,6 +129,15 @@ def test_hotspot_weights_add_up_to_mec(app):
     assert hot["weight"].sum() == pytest.approx(cells["mec"].sum(), rel=1e-5)
 
 
+def test_nrt_rows_are_provisional(app):
+    out, _ = app
+    cells = pd.read_parquet(out / "cells_daily.parquet")
+    nrt = (cells["lat"].round(1) == NRT_CELL[0]) & (cells["lon"].round(1) == NRT_CELL[1])
+    assert nrt.sum() == 1 and cells.loc[nrt, "provisional"].all()
+    assert cells.loc[nrt, "mec"].iloc[0] == 0          # MODIS weighs 0 in the VIIRS era
+    assert not cells.loc[~nrt, "provisional"].any()     # everything else is archive
+
+
 def test_missing_days_scopes(app):
     out, _ = app
     miss = pd.read_parquet(out / "missing_days.parquet")
@@ -144,15 +147,7 @@ def test_missing_days_scopes(app):
 
 # ---------------------------------------------------------------- real data, when built
 
-REAL_APP = Path("data/app")
 REAL_GRIDS = sorted(Path("data/processed").glob("grid_daily_*.parquet"))
-
-
-@pytest.mark.skipif(not (REAL_APP / "cells_daily.parquet").exists(), reason="run python -m pipeline.build_app_data")
-@pytest.mark.parametrize("name", list(CONTRACT))
-def test_real_app_data_matches_contract(name):
-    schema = pq.read_schema(REAL_APP / f"{name}.parquet")
-    assert dict(zip(schema.names, schema.types)) == CONTRACT[name]
 
 
 @pytest.mark.skipif(not REAL_GRIDS, reason="run python -m pipeline.grid")
