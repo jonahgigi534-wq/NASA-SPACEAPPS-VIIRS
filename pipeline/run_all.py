@@ -29,6 +29,7 @@ STEPS = [
     ("validate", ["pipeline.validate"], "results/metrics.json + scatter/bias figures"),
     ("app", ["pipeline.build_app_data"], "data/app/ (CONTRACTS.md section 2)"),
     ("continuity", ["pipeline.validate", "--continuity"], "results/figures/continuity_<region>.png"),
+    ("presets", ["pipeline.presets"], "docs/presets.json (biggest anomalies)"),
 ]
 NAMES = [s[0] for s in STEPS]
 
