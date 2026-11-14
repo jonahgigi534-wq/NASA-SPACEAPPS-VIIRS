@@ -487,13 +487,24 @@ def describe_season(fs):
     part = "early" if pd_ <= 10 else ("mid" if pd_ <= 20 else "late")
     runs = (f"is concentrated in {MONTHS[sm - 1]}" if sm == em
             else f"usually runs {MONTHS[sm - 1]} to {MONTHS[em - 1]}")
-    return f"Fire season here {runs}, peaking in {part}-{MONTHS[pm - 1]}."
+    when = f"mid-{MONTHS[pm - 1]}" if part == "mid" else f"{part} {MONTHS[pm - 1]}"
+    return f"Fire season here {runs}, peaking in {when}."
 
 
-def summary_sentence(total, median, pct, when, unit_word):
+NO_DATA_SENTENCE = ("There is no satellite data for most of this period, so we can't compare "
+                    "it with normal.")
+
+
+def summary_sentence(total, median, pct, when, unit_word, no_data=False):
+    # no_data: more than 20% of the days are missing, so the period's value is unknown (NaN).
+    # Check this first: a known median doesn't help when we don't know this period's value.
+    if no_data:
+        return NO_DATA_SENTENCE
     if median is None or _isnan(median) or median <= 0:
         return (f"There are usually almost no {unit_word} here at this time of year; "
                 f"this area had {count_words(total, unit_word)} {when}.")
+    if pct is None or _isnan(pct):
+        return NO_DATA_SENTENCE
     vs = f"({count_words(total, unit_word)} vs a typical {fmt_int(median)})"
     if pct >= 150:
         return f"This area had {pct / 100:.1f} times its normal fire activity {when} {vs}."
@@ -604,7 +615,8 @@ def summary(s, start, end, baseline, provisional_after, unit_word, area_info):
 
     missing_days = int(w.isna().sum())
     provisional_days = int((w.index.date > provisional_after).sum())
-    parts = [summary_sentence(total, median, pct, describe_range(start, end), unit_word)]
+    parts = [summary_sentence(total, median, pct, describe_range(start, end), unit_word,
+                              no_data=_isnan(value))]
     if fs:
         parts.append(describe_season(fs))
     if busiest_year and end.year == start.year:
@@ -653,10 +665,13 @@ def current(s, as_of, baseline, provisional_after, unit_word):
 
     month_name = MONTHS[as_of.month - 1]
     days = f"{MON[as_of.month - 1]} 1-{as_of.day}"
-    if _isnan(median) or median <= 0:
+    if _isnan(this):           # most days missing: this month's value is unknown
+        text = (f"There is no satellite data for most of {month_name} so far ({days}), "
+                "so we can't compare it with normal.")
+    elif _isnan(median) or median <= 0:
         text = (f"{count_words(value_so_far, unit_word)} so far in {month_name} ({days}); "
                 "there are usually almost none on these days.")
-    else:
+    else:                      # value and median both known, median > 0, so pct is a number
         text = (f"{count_words(value_so_far, unit_word)} so far this month ({days}) vs a typical "
                 f"{fmt_int(median)} ({round(pct)}% of median)")
         if rank:

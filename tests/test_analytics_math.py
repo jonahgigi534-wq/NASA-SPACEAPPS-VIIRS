@@ -170,6 +170,33 @@ def test_summary_pct_of_median_for_a_range():
     assert "3.0 times its normal" in out["summary_text"]
 
 
+def test_summary_when_whole_range_is_missing_but_median_exists():
+    """Regression (Track A science check): MODIS had no data 2020-08-19..25 in N. Australia.
+    The median exists, the value doesn't -> pct must be null, not a crash (was HTTP 500)."""
+    s = daily("2003-01-01", "2022-12-31", 10.0)
+    s.loc["2020-08-19":"2020-08-25"] = np.nan
+    info = {"area_km2": 100.0, "cells": 1, "region": "australia"}
+    out = an.summary(s, date(2020, 8, 19), date(2020, 8, 25), (2003, 2022), date(2030, 1, 1),
+                     "MODIS hotspots", info)
+    assert out["key_figures"]["pct_of_median"] is None
+    assert out["key_figures"]["total_hotspots"] == 0
+    assert out["missing_days"] == 7
+    assert out["summary_text"].startswith(an.NO_DATA_SENTENCE)
+
+
+def test_current_when_month_so_far_is_missing_but_median_exists():
+    s = daily("2003-01-01", "2020-08-25", 10.0)
+    s.loc["2020-08-01":"2020-08-25"] = np.nan
+    out = an.current(s, date(2020, 8, 25), (2003, 2019), date(2030, 1, 1), "MODIS hotspots")
+    assert out["pct_of_median"] is None and out["rank_among_years"] is None
+    assert out["median_same_days"] == 250
+    assert "no satellite data for most of August" in out["summary_text"]
+
+
+def test_summary_sentence_never_compares_none():
+    assert an.summary_sentence(0, 2534.0, None, "in 2020", "hotspots") == an.NO_DATA_SENTENCE
+
+
 # ---- area selection ----------------------------------------------------------------------------
 
 def test_point_radius_selects_cells_by_distance():

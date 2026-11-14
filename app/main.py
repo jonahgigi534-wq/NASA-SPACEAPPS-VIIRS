@@ -7,6 +7,8 @@ Then open http://127.0.0.1:8000 (website) or http://127.0.0.1:8000/docs (try eve
 
 Data folder: env var APP_DATA_DIR (default data/app). If it's empty, make fake data first:
     python scripts/make_synthetic_app_data.py
+Deployed: set APP_DATA_URL (Hugging Face dataset URL ending in /resolve/main/) and the 4 data
+files are downloaded into APP_DATA_DIR at startup if missing (see "Deploy" below).
 
 How a request works:
   1. parse the area (bbox / polygon / point + radius) and find the 0.1 degree cells inside it
@@ -20,6 +22,7 @@ import json
 import os
 import threading
 from collections import OrderedDict
+from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
 from typing import List, Literal, Optional
@@ -204,6 +207,7 @@ def get_store():
     """Load the data on first use (so importing this module never fails), and reload it when
     the files change (e.g. pipeline/live.py wrote fresh live data)."""
     global _store, _store_sig
+    check_download_status()
     data_dir = os.environ.get("APP_DATA_DIR", REPO / "data" / "app")
     sig = _signature(data_dir)
     with _store_lock:
@@ -219,6 +223,103 @@ def reset_store():
     with _store_lock:
         _store = None
         _store_sig = None
+
+
+# =============================================================================================
+# Deploy: download the app data at startup (B6)
+# =============================================================================================
+# On the deployed site the data isn't in the container. Set APP_DATA_URL to the Hugging Face
+# dataset's base URL (ending in /resolve/main/) and the 4 files are downloaded by name into
+# APP_DATA_DIR when the server starts, if they're missing. The server answers right away;
+# until the download finishes, endpoints return 503 "still downloading".
+
+DOWNLOAD_CHUNK = 1 << 20          # write to disk 1 MB at a time (never hold a file in memory)
+DOWNLOAD_RETRIES = 3
+_download = {"active": False, "file": None, "mb_done": 0.0, "mb_total": None, "error": None}
+
+
+def _http_client():
+    import httpx
+    return httpx.Client(follow_redirects=True,
+                        timeout=httpx.Timeout(60.0, read=300.0))   # HF redirects to its CDN
+
+
+def missing_data_files(data_dir):
+    return [f for f in DataStore.REQUIRED if not (Path(data_dir) / f).exists()]
+
+
+def download_app_data(base_url, data_dir, client=None):
+    """Download every missing required file from base_url into data_dir, streaming to disk.
+    Each file goes to '<name>.part' first and is renamed only when complete."""
+    data_dir = Path(data_dir)
+    data_dir.mkdir(parents=True, exist_ok=True)
+    base = base_url if base_url.endswith("/") else base_url + "/"
+    own = client is None
+    client = client or _http_client()
+    try:
+        for name in missing_data_files(data_dir):
+            dest, part = data_dir / name, data_dir / (name + ".part")
+            error = None
+            for attempt in range(1, DOWNLOAD_RETRIES + 1):
+                try:
+                    with client.stream("GET", base + name) as r:
+                        r.raise_for_status()
+                        size = r.headers.get("content-length")
+                        _download.update(file=name, mb_done=0.0,
+                                         mb_total=round(int(size) / 1e6) if size else None)
+                        with open(part, "wb") as f:
+                            for chunk in r.iter_bytes(DOWNLOAD_CHUNK):
+                                f.write(chunk)
+                                _download["mb_done"] += len(chunk) / 1e6
+                    os.replace(part, dest)
+                    print(f"[data] downloaded {name} ({dest.stat().st_size / 1e6:.0f} MB)",
+                          flush=True)
+                    error = None
+                    break
+                except Exception as ex:
+                    error = f"{name}: {ex}"
+                    print(f"[data] download attempt {attempt} failed: {error}", flush=True)
+                    part.unlink(missing_ok=True)
+            if error:
+                raise RuntimeError(f"Couldn't download {error}")
+    finally:
+        if own:
+            client.close()
+
+
+def _download_in_background(base_url, data_dir):
+    _download.update(active=True, error=None)
+    try:
+        download_app_data(base_url, data_dir)
+    except Exception as ex:
+        _download["error"] = str(ex)
+    finally:
+        _download["active"] = False
+
+
+def start_data_download():
+    """Called at startup: begin downloading missing data files if APP_DATA_URL is set."""
+    url = os.environ.get("APP_DATA_URL", "").strip()
+    data_dir = os.environ.get("APP_DATA_DIR", REPO / "data" / "app")
+    if not url or not missing_data_files(data_dir):
+        return None
+    _download["active"] = True       # set before the thread starts so requests see it at once
+    t = threading.Thread(target=_download_in_background, args=(url, data_dir), daemon=True,
+                         name="app-data-download")
+    t.start()
+    return t
+
+
+def check_download_status():
+    """Raise DataMissing with a friendly message while data is downloading or if it failed."""
+    if _download["active"]:
+        done = f"{_download['mb_done']:.0f}"
+        total = f" of {_download['mb_total']}" if _download["mb_total"] else ""
+        raise DataMissing(f"The fire data is still downloading ({_download['file'] or 'starting'}"
+                          f", {done}{total} MB). Try again in a minute.")
+    if _download["error"]:
+        raise DataMissing(f"The fire data couldn't be downloaded: {_download['error']}. "
+                          "Check APP_DATA_URL and restart the app.")
 
 
 # =============================================================================================
@@ -351,8 +452,15 @@ def ctx_for(q: Query):
 # The app
 # =============================================================================================
 
+@asynccontextmanager
+async def lifespan(_app):
+    start_data_download()          # no-op unless APP_DATA_URL is set and files are missing
+    yield
+
+
 app = FastAPI(title="FireBridge API",
-              description="Harmonized MODIS + VIIRS burning activity calendar (NASA Space Apps 2026)")
+              description="Harmonized MODIS + VIIRS burning activity calendar (NASA Space Apps 2026)",
+              lifespan=lifespan)
 # The frontend may be served from another port while developing, so allow cross-origin calls.
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"],
                    allow_headers=["*"])
