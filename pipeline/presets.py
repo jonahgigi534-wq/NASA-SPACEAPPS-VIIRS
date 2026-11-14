@@ -11,7 +11,7 @@ event anywhere, ranked by peak-month % of median. At most one event per region-y
 Each preset's bbox is where the extra fire was: 1 deg blocks ranked by excess over their own
 median until they hold half the event's excess, boxed, then clipped to the region. The % of
 median in "why" is recomputed for exactly that bbox (cells whose centres are inside it, as the
-app does).
+app does) using the same window rule as /api/summary.
 
 Run from the repo root:  python -m pipeline.presets
 """
@@ -21,9 +21,11 @@ import json
 from pathlib import Path
 
 import duckdb
+import numpy as np
 import pandas as pd
 
 from pipeline.build_app_data import region_bboxes
+from pipeline.science_check import Expected, same_window, window_total
 
 CELLS = Path("data/app/cells_daily.parquet")
 OUT = Path("docs/presets.json")
@@ -116,17 +118,15 @@ def event_bbox(blocks: pd.DataFrame, region: str, months: list, region_box: list
     return [float(max(box[0], w)), float(max(box[1], s)), float(min(box[2], e)), float(min(box[3], n))]
 
 
-def bbox_stats(con, region: str, bbox: list, months: list) -> dict:
-    """Value and baseline median inside bbox for the event months, as the app would compute."""
-    w, s, e, n = bbox
-    m = con.execute(f"""
-        SELECT region, date_trunc('month', date)::DATE AS mon, sum(mec) AS v
-        FROM read_parquet('{_cells()}')
-        WHERE region = ? AND lon BETWEEN ? AND ? AND lat BETWEEN ? AND ?
-        GROUP BY ALL""", [region, w, e, s, n]).df()
-    ev = with_median(m, ["region"])
-    ev = ev[ev["mon"].isin(months)]
-    return {"value": float(ev["v"].sum()), "median": float(ev["med"].sum())}
+def bbox_stats(expected, region: str, bbox: list, months: list) -> dict:
+    """Value and "typical" inside bbox for the event window, exactly as /api/summary computes
+    them (CLAUDE.md 5.3): typical = median over the baseline years of the SAME window's total,
+    with missing days handled the same way (pipeline.science_check checks this vs the app)."""
+    first = pd.Timestamp(months[0])
+    last = pd.Timestamp(months[-1]) + pd.offsets.MonthEnd(0)
+    s = expected.series(region, bbox)
+    typical = same_window(s, first, last, range(BASELINE[0], BASELINE[1] + 1)).values()
+    return {"value": window_total(s, first, last), "median": float(np.median(list(typical)))}
 
 
 def span_text(months: list) -> str:
@@ -149,12 +149,13 @@ def build() -> list[dict]:
     con = duckdb.connect()
     con.execute("SET TimeZone = 'UTC'")
     boxes = region_bboxes()
-    regional = with_median(monthly(con), ["region"])
+    expected = Expected()
+    regional =with_median(monthly(con), ["region"])
     blocks = with_median(monthly(con, by_block=True), ["region", "by", "bx"])
     presets = []
     for ev in pick(events(regional)).itertuples():
         bbox = event_bbox(blocks, ev.region, ev.months, boxes[ev.region])
-        st = bbox_stats(con, ev.region, bbox, ev.months)
+        st = bbox_stats(expected, ev.region, bbox, ev.months)
         first, last = pd.Timestamp(ev.months[0]), pd.Timestamp(ev.months[-1])
         months_label = first.strftime("%b") + ("" if first == last else "-" + last.strftime("%b"))
         place, context = CONTEXT.get((ev.region, first.year), (NAMES[ev.region], None))
