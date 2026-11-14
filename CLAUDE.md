@@ -100,6 +100,14 @@ australia 0.5% / 0.2%. NASA plans to end Terra MODIS collection Jan 2027 and Aqu
 - `data/raw/missing_dates.csv`: FIRMS missing-data dates. If absent, infer per-sensor gaps
   (days with zero detections region-wide while the other sensor has many) and flag them.
 - **A missing-data day is NaN, never zero.**
+- Implemented in `pipeline/grid.py` (A2; no missing_dates.csv, so inferred): a satellite-day is
+  missing when it has 0 detections region-wide although EVERY other operating satellite predicts
+  >= 10 for it (their count x long-run ratio). This finds known outages (S-NPP late Jul 2022,
+  NOAA-20 Jul 2023, Aqua's first weeks). Limitation: days when all satellites are down at once
+  can't be detected. Result: `data/processed/daily_sat_<region>.parquet` (n_det NaN = missing).
+- Overpass drift (results/overpass_times.md): from 2022 Terra drifts earlier and Aqua later
+  (Aqua daytime ~15:30 by 2026), so Aqua/S-NPP are no longer same-overpass after ~2022.
+  Report test-period scores for 2022+ separately in A3.
 
 ## 4. Harmonization (R1, R2)
 
