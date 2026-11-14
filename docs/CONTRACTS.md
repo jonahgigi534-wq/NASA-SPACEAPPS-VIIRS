@@ -7,9 +7,9 @@ two tracks** (and updating this file in the same commit). Everything else is you
 
 | Track | Owns (only this track edits these) |
 |---|---|
-| **A, Data + Science** | `pipeline/` (except `pipeline/live.py`), `tests/test_pipeline_*.py`, `results/`, `data/app/` (built files), `CLAUDE.md`, `Makefile` |
+| **A, Data + Science** | `pipeline/` (except `pipeline/live.py`), `tests/test_pipeline_*.py`, `results/`, `data/app/` (built files), `docs/presets.json`, `docs/methods_text.md`, `CLAUDE.md`, `Makefile` |
 | **B, Backend** | `app/main.py`, `app/analytics.py`, `app/__init__.py`, `pipeline/live.py`, `scripts/make_synthetic_app_data.py`, `tests/test_api_*.py`, `tests/test_analytics_*.py`, `requirements.txt` |
-| **C, Frontend + Ship** | `app/static/**` (incl. `app/static/mock/`), `Dockerfile`, `docs/` (except this file and `challenge.md`), `README.md`, `scripts/record_demo.py`, `.dockerignore` |
+| **C, Frontend + Ship** | `app/static/**` (incl. `app/static/mock/`), `Dockerfile`, `docs/` (except this file, `challenge.md`, `presets.json`, `methods_text.md`), `README.md`, `scripts/record_demo.py`, `.dockerignore` |
 
 Shared, edit with care and tell the others: `docs/CONTRACTS.md`, `docs/challenge.md`, `.gitignore`.
 

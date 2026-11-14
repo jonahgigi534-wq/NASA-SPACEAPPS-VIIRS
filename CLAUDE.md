@@ -258,8 +258,10 @@ live API (keep NRT from zips) → Australia region. Never cut validation or R6/R
 ## 10. Team mode (3 people, 3 Claude Code sessions)
 
 We build in three parallel tracks: **A Data + Science**, **B Backend**, **C Frontend + Ship**.
-Read `PARALLEL_PLAN.md` for your track's prompts and `docs/CONTRACTS.md` for file ownership,
+Your track's prompts, in order, are in `tracks/TRACK_A_DATA_SCIENCE.md`, `tracks/TRACK_B_BACKEND.md` and
+`tracks/TRACK_C_FRONTEND_SHIP.md`; `docs/CONTRACTS.md` has file ownership,
 data schemas, API shapes and checkpoint times. **Only edit files your track owns.** Match the
 contracts exactly; if one must change, update `docs/CONTRACTS.md` in the same commit and say so.
 Always `git pull --rebase origin main` before pushing. The §8 times are superseded by the
 checkpoints in `docs/CONTRACTS.md` §5.
+When you finish a prompt, tell the user which prompt in their track file comes next and when to run it.
