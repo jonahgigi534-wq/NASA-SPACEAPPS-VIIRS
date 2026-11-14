@@ -205,3 +205,13 @@ def test_no_refresh_without_key_or_when_disabled(live_ready_dir, monkeypatch):
     monkeypatch.setenv("FIRMS_MAP_KEY", "x")
     monkeypatch.setenv("LIVE_REFRESH", "0")
     assert main.start_live_refresh() is None
+
+
+@pytest.mark.parametrize("given", [
+    "https://huggingface.co/datasets/team/firebridge-data/resolve/main/",
+    "https://huggingface.co/datasets/team/firebridge-data/resolve/main",
+    "https://huggingface.co/datasets/team/firebridge-data/resolve/main/coverage.json",
+    "https://huggingface.co/datasets/team/firebridge-data/resolve/main/hotspots.parquet?download=true",
+])
+def test_app_data_url_folder_or_file(given):
+    assert main.data_base_url(given) == BASE

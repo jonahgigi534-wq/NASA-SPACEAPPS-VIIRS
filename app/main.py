@@ -246,6 +246,16 @@ def _http_client():
                         timeout=httpx.Timeout(60.0, read=300.0))   # HF redirects to its CDN
 
 
+def data_base_url(url):
+    """The folder URL the 4 files live under. Accepts the folder URL (ending in /resolve/main/)
+    or, by mistake, a URL to one of the files (e.g. .../resolve/main/coverage.json)."""
+    url = url.strip().split("?")[0]
+    last = url.rstrip("/").rsplit("/", 1)[-1]
+    if not url.endswith("/") and "." in last:
+        url = url[: -len(last)]
+    return url if url.endswith("/") else url + "/"
+
+
 def missing_data_files(data_dir):
     return [f for f in DataStore.REQUIRED if not (Path(data_dir) / f).exists()]
 
@@ -255,7 +265,7 @@ def download_app_data(base_url, data_dir, client=None):
     Each file goes to '<name>.part' first and is renamed only when complete."""
     data_dir = Path(data_dir)
     data_dir.mkdir(parents=True, exist_ok=True)
-    base = base_url if base_url.endswith("/") else base_url + "/"
+    base = data_base_url(base_url)
     own = client is None
     client = client or _http_client()
     try:
