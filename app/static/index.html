@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FireBridge: 25 years of fire activity, one consistent record</title>
+  <meta name="description" content="Harmonized MODIS + VIIRS burning activity calendar for any area: fire seasons, unusual years and this month versus history.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M16 2c2 6 9 9 9 17a9 9 0 0 1-18 0c0-5 3-7 4-11 1 3 3 4 3 4s-1-5 2-10z' fill='%23d9480f'/></svg>">
+</head>
+<body>
+  <a class="skip-link" href="#results">Skip to results</a>
+
+  <header class="site-header">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2c2 6 9 9 9 17a9 9 0 0 1-18 0c0-5 3-7 4-11 1 3 3 4 3 4s-1-5 2-10z"/></svg>
+      <div>
+        <h1>FireBridge</h1>
+        <p class="tagline">Fire activity 2001 → today, from MODIS and VIIRS satellites, on one consistent scale</p>
+      </div>
+    </div>
+    <nav aria-label="Main">
+      <a href="/" aria-current="page">Fire calendar</a>
+      <a href="/methods">How it works</a>
+    </nav>
+  </header>
+
+  <div id="mock-banner" class="banner banner-info" hidden>Sample data mode (<code>?mock=1</code>): numbers are examples, not real.</div>
+  <div id="error-banner" class="banner banner-error" role="alert" hidden></div>
+
+  <main class="layout">
+    <!-- ================= LEFT: choose area + settings ================= -->
+    <section class="panel controls" aria-labelledby="controls-title">
+      <h2 id="controls-title" class="panel-title">1. Choose an area</h2>
+
+      <div id="map" class="map" role="application" aria-label="Map. Draw a rectangle, polygon or circle to choose an area. The outlined boxes are the regions we have data for."></div>
+      <p class="hint">Draw a <strong>rectangle</strong>, <strong>polygon</strong> or <strong>circle</strong> with the tools on the map, or type coordinates below. Outlined boxes show where we have data.</p>
+
+      <div class="presets" role="group" aria-labelledby="presets-title">
+        <h3 id="presets-title" class="mini-title">Big fire events (from the data)</h3>
+        <div id="preset-buttons" class="preset-buttons"></div>
+      </div>
+
+      <details class="coords">
+        <summary>Type coordinates instead</summary>
+        <form id="bbox-form" class="coord-form" aria-label="Box by coordinates">
+          <fieldset>
+            <legend>Box (decimal degrees)</legend>
+            <label>West <input name="w" type="number" step="any" required value="-100"></label>
+            <label>South <input name="s" type="number" step="any" required value="30"></label>
+            <label>East <input name="e" type="number" step="any" required value="-96"></label>
+            <label>North <input name="n" type="number" step="any" required value="33"></label>
+          </fieldset>
+          <button type="submit" class="btn">Use this box</button>
+        </form>
+        <form id="point-form" class="coord-form" aria-label="Point and radius">
+          <fieldset>
+            <legend>Point + radius</legend>
+            <label>Latitude <input name="lat" type="number" step="any" min="-90" max="90" required value="31"></label>
+            <label>Longitude <input name="lon" type="number" step="any" min="-180" max="180" required value="-98"></label>
+            <label>Radius km <input name="r" type="number" step="any" min="1" max="1000" required value="50"></label>
+          </fieldset>
+          <button type="submit" class="btn">Use this point</button>
+        </form>
+      </details>
+
+      <h2 class="panel-title">2. Dates and settings</h2>
+      <div class="settings">
+        <div class="field-row">
+          <label>From <input id="start" type="date" min="2001-01-01"></label>
+          <label>To <input id="end" type="date" min="2001-01-01"></label>
+        </div>
+        <div class="quick-dates" role="group" aria-label="Quick date ranges">
+          <button type="button" class="chip" data-range="12m">Last 12 months</button>
+          <button type="button" class="chip" data-range="ytd">This year</button>
+          <button type="button" class="chip" data-range="all">Whole record</button>
+        </div>
+        <div class="field-row">
+          <label title="'Normal' is the median of these years">Normal = years
+            <input id="base0" type="number" min="2001" max="2025" value="2003" aria-label="Baseline first year"></label>
+          <label>to <input id="base1" type="number" min="2001" max="2025" value="2022" aria-label="Baseline last year"></label>
+        </div>
+        <div class="mode" role="radiogroup" aria-labelledby="mode-label">
+          <span id="mode-label" class="mini-title">Satellite record</span>
+          <div class="segmented">
+            <label><input type="radio" name="mode" value="harmonized" checked><span>Harmonized</span></label>
+            <label><input type="radio" name="mode" value="modis_only"><span>MODIS only</span></label>
+            <label><input type="radio" name="mode" value="viirs_raw"><span>Raw VIIRS</span></label>
+          </div>
+          <p class="hint" id="mode-hint">Harmonized: VIIRS translated to the MODIS scale, so 2001–today is one consistent series.</p>
+        </div>
+      </div>
+
+      <h2 class="panel-title">3. Download</h2>
+      <div class="downloads">
+        <button type="button" class="btn" id="dl-hotspots">Hotspots in this area (CSV)</button>
+        <button type="button" class="btn" id="dl-series">Daily analytics table (CSV)</button>
+      </div>
+      <p class="hint">Charts download as PNG with the <span aria-hidden="true">⤓</span> button on each chart.</p>
+    </section>
+
+    <!-- ================= RIGHT: results ================= -->
+    <section id="results" class="results" aria-labelledby="results-title" tabindex="-1">
+      <div class="results-head">
+        <h2 id="results-title"><span id="area-label">Loading…</span></h2>
+        <p id="range-label" class="muted"></p>
+      </div>
+
+      <div id="key-figures" class="key-figures" aria-live="polite">
+        <div class="kf"><span class="kf-label">Hotspots in range</span><span class="kf-value" id="kf-total">–</span><span class="kf-sub" id="kf-total-sub"></span></div>
+        <div class="kf"><span class="kf-label">vs normal</span><span class="kf-value" id="kf-pct">–</span><span class="kf-sub" id="kf-pct-sub">of the median</span></div>
+        <div class="kf"><span class="kf-label">Busiest month</span><span class="kf-value" id="kf-month">–</span><span class="kf-sub">in range</span></div>
+        <div class="kf"><span class="kf-label">Busiest year</span><span class="kf-value" id="kf-year">–</span><span class="kf-sub" id="kf-year-sub"></span></div>
+        <div class="kf"><span class="kf-label">Fire season</span><span class="kf-value" id="kf-season">–</span><span class="kf-sub" id="kf-season-sub"></span></div>
+      </div>
+
+      <div class="summary" aria-live="polite">
+        <span class="summary-icon" aria-hidden="true">i</span>
+        <p id="summary-text">Choose an area to see its fire history.</p>
+      </div>
+
+      <div class="tabs" role="tablist" aria-label="Analyses">
+        <button role="tab" id="tab-calendar" aria-controls="panel-calendar" aria-selected="true">Burning calendar</button>
+        <button role="tab" id="tab-patterns" aria-controls="panel-patterns" aria-selected="false" tabindex="-1">Patterns &amp; critical periods</button>
+        <button role="tab" id="tab-now" aria-controls="panel-now" aria-selected="false" tabindex="-1">Now vs history</button>
+      </div>
+
+      <!-- Burning calendar -->
+      <div role="tabpanel" id="panel-calendar" aria-labelledby="tab-calendar" class="tabpanel">
+        <div class="card">
+          <div class="card-head">
+            <h3>Hotspots per month, 2001 → today</h3>
+            <div class="card-tools">
+              <div class="segmented small" role="radiogroup" aria-label="Calendar colors">
+                <label><input type="radio" name="calview" value="counts" checked><span>Counts</span></label>
+                <label><input type="radio" name="calview" value="anomaly"><span>vs normal</span></label>
+              </div>
+              <button type="button" class="icon-btn" data-png="calendar-svg" aria-label="Download burning calendar as PNG" title="Download PNG">⤓</button>
+            </div>
+          </div>
+          <p class="hint">Each square is one month. Click (or press Enter on) a month to see its days. <span class="legend-inline"><span class="sw sw-missing"></span> no data</span> <span class="legend-inline"><span class="sw sw-prov"></span> provisional</span> <span class="legend-inline"><span class="sw sw-range"></span> your dates</span></p>
+          <div id="calendar" class="calendar-wrap"></div>
+          <div id="calendar-legend" class="legend"></div>
+        </div>
+        <div class="card" id="daily-card" hidden>
+          <div class="card-head">
+            <h3 id="daily-title">Days</h3>
+            <div class="card-tools">
+              <button type="button" class="icon-btn" data-png="daily-svg" aria-label="Download daily calendar as PNG" title="Download PNG">⤓</button>
+            </div>
+          </div>
+          <div id="daily" class="daily-wrap"></div>
+        </div>
+      </div>
+
+      <!-- Patterns -->
+      <div role="tabpanel" id="panel-patterns" aria-labelledby="tab-patterns" class="tabpanel" hidden>
+        <div class="card">
+          <div class="card-head">
+            <h3>Which months see the most fire</h3>
+            <div class="card-tools"><button type="button" class="icon-btn" data-png="chart-months" aria-label="Download monthly chart as PNG" title="Download PNG">⤓</button></div>
+          </div>
+          <p class="hint" id="season-text"></p>
+          <div class="chart-box"><canvas id="chart-months" role="img" aria-label="Typical hotspots per month"></canvas></div>
+          <h4 class="mini-title">Chance of an unusually busy month <span class="muted">(share of normal-years where the month was well above its normal; history, not a forecast)</span></h4>
+          <div id="chance-row" class="chance-row"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h3>Which years had the most fire</h3>
+            <div class="card-tools"><button type="button" class="icon-btn" data-png="chart-years" aria-label="Download yearly chart as PNG" title="Download PNG">⤓</button></div>
+          </div>
+          <p class="hint" id="years-text"></p>
+          <div class="chart-box"><canvas id="chart-years" role="img" aria-label="Hotspots per year"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Now vs history -->
+      <div role="tabpanel" id="panel-now" aria-labelledby="tab-now" class="tabpanel" hidden>
+        <div class="card">
+          <div class="card-head">
+            <h3 id="now-title">This month so far</h3>
+            <div class="card-tools"><button type="button" class="icon-btn" data-png="chart-now" aria-label="Download this-month chart as PNG" title="Download PNG">⤓</button></div>
+          </div>
+          <div class="now-grid">
+            <div class="now-big">
+              <span id="now-pct" class="now-pct">–</span>
+              <span id="now-pct-sub" class="muted">of the median for these days</span>
+              <span id="now-rank" class="now-rank"></span>
+            </div>
+            <div class="chart-box short"><canvas id="chart-now" role="img" aria-label="This month so far compared with the same days in other years"></canvas></div>
+          </div>
+          <p id="now-text" class="now-text"></p>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h3 id="now-daily-title">Day by day vs normal</h3>
+            <div class="card-tools"><button type="button" class="icon-btn" data-png="now-daily-svg" aria-label="Download daily anomaly calendar as PNG" title="Download PNG">⤓</button></div>
+          </div>
+          <div id="now-daily" class="daily-wrap"></div>
+        </div>
+      </div>
+
+      <!-- Long-term record -->
+      <div class="card longterm">
+        <div class="card-head">
+          <h3>The satellite switch: raw vs harmonized</h3>
+          <div class="card-tools"><button type="button" class="icon-btn" data-png="chart-longterm" aria-label="Download long-term chart as PNG" title="Download PNG">⤓</button></div>
+        </div>
+        <p class="hint">VIIRS (from 2012) sees many more hotspots than MODIS. Raw VIIRS jumps; the harmonized record continues on the MODIS scale.</p>
+        <div class="chart-box tall"><canvas id="chart-longterm" role="img" aria-label="Monthly hotspots 2001 to today: harmonized, MODIS only and raw VIIRS"></canvas></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Data: NASA FIRMS active fires (MODIS C6.1, VIIRS 375 m S-NPP / NOAA-20 / NOAA-21). Built for NASA Space Apps 2026. Hotspots are satellite fire detections, not burned area. <a href="/methods">Methods, validation and limitations</a>.</p>
+  </footer>
+
+  <div id="loading" class="loading" hidden aria-hidden="true"><span></span></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/format.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/calendar.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

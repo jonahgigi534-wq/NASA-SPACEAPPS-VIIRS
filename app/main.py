@@ -35,7 +35,8 @@ import pandas as pd
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
+from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse, Response,
+                               StreamingResponse)
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 
@@ -552,6 +553,16 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "P
                    allow_headers=["*"])
 
 
+@app.middleware("http")
+async def _revalidate_website_files(request: Request, call_next):
+    """Browsers must re-check website files (cheap: ETag -> 304) so a redeploy shows up at once
+    instead of an old cached app.js or style.css."""
+    response = await call_next(request)
+    if not request.url.path.startswith("/api/"):
+        response.headers.setdefault("Cache-Control", "no-cache")
+    return response
+
+
 @app.exception_handler(ApiError)
 @app.exception_handler(an.AreaError)
 async def _bad_request(request: Request, exc: Exception):
@@ -743,12 +754,93 @@ def export_hotspots(q: Query):
                              headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 
+FIGURES = [  # (file in results/figures, caption) shown on the Methods page
+    ("continuity_texas.png", "Texas, 2001 to now: the naive record jumps when VIIRS starts; the "
+                             "harmonized record continues on the MODIS scale."),
+    ("continuity_amazon.png", "Amazon, the same comparison."),
+    ("continuity_australia.png", "Northern Australia, the same comparison."),
+    ("scatter_before_after.png", "Test years, every 25 km square-month: raw VIIRS (left) sits far "
+                                 "above MODIS; after harmonizing (right) it follows the 1:1 line."),
+    ("bias_before_after.png", "Bias against MODIS Aqua before and after harmonizing, by region."),
+    ("overpass_times.png", "When each satellite passes over. Terra and Aqua have drifted in "
+                           "recent years, which is one of our stated limitations."),
+]
+
+
+def _methods_html():
+    """Methods page body: headline cards from results/metrics.json, Track A's methods text
+    (docs/methods_text.md) and the validation figures. Rendered on the server so the numbers
+    are in the HTML itself (Track A's science check reads them there)."""
+    import html as h
+    import markdown
+    text = (REPO / "docs" / "methods_text.md").read_text(encoding="utf-8")
+    body = markdown.markdown(text, extensions=["tables"])
+    body = body.replace("<table>", '<table class="results-table">')
+
+    cards = ""
+    mp = REPO / "results" / "metrics.json"
+    if mp.exists():
+        m = json.loads(mp.read_text())["overall"]
+        ho, tr = m["holdout"], m["transfer_noaa20"]
+        # number formats match results/metrics.json (thousands with commas, bias to 2 decimals)
+        sign = lambda x: f"{'+' if x >= 0 else '−'}{abs(x):.2f}%"
+        cards = f"""
+<div class="metrics-cards">
+  <div class="kf"><span class="kf-label">Raw VIIRS vs MODIS</span>
+    <span class="kf-value">{sign(ho['raw_viirs']['bias_pct'])}</span>
+    <span class="kf-sub">bias before harmonizing (test years)</span></div>
+  <div class="kf"><span class="kf-label">After harmonizing</span>
+    <span class="kf-value">{sign(ho['harmonized']['bias_pct'])}</span>
+    <span class="kf-sub">bias on the test years</span></div>
+  <div class="kf"><span class="kf-label">Typical monthly error</span>
+    <span class="kf-value">{abs(ho['harmonized']['rmse']):,.0f}</span>
+    <span class="kf-sub">hotspots/month, vs {abs(ho['global_ratio']['rmse']):,.0f} for one global
+      ratio; NOAA-20 (never used in fitting): {abs(tr['harmonized']['rmse']):,.0f} vs
+      {abs(tr['global_ratio']['rmse']):,.0f}</span></div>
+</div>"""
+
+    figs = "".join(
+        f'<figure><img src="/figures/{f}" alt="{h.escape(c)}" loading="lazy">'
+        f"<figcaption>{h.escape(c)}</figcaption></figure>"
+        for f, c in FIGURES if (REPO / "results" / "figures" / f).exists())
+    if figs:
+        figs = "<h2>Validation figures</h2>" + figs
+        marker = "<h2>Data sources</h2>"
+        body = body.replace(marker, figs + marker, 1) if marker in body else body + figs
+    # put the headline cards right after the page title
+    first_h2 = body.find("<h2>")
+    body = body[:first_h2] + cards + body[first_h2:] if first_h2 > 0 else cards + body
+    return body
+
+
 @app.get("/methods", include_in_schema=False)
 def methods_page():
     page = STATIC_DIR / "methods.html"
     if not page.exists():
         return JSONResponse(status_code=404, content={"error": "methods.html isn't built yet."})
-    return FileResponse(page)
+    page_html = page.read_text(encoding="utf-8")
+    if "<!--METHODS_CONTENT-->" in page_html and (REPO / "docs" / "methods_text.md").exists():
+        page_html = page_html.replace("<!--METHODS_CONTENT-->", _methods_html())
+    return HTMLResponse(page_html)
+
+
+# Track A's files the website shows, served straight from where Track A keeps them, so the
+# site never has stale copies: presets, Methods text, metrics.json and validation figures.
+CONTENT_FILES = {"presets.json": REPO / "docs" / "presets.json",
+                 "methods_text.md": REPO / "docs" / "methods_text.md",
+                 "metrics.json": REPO / "results" / "metrics.json"}
+
+
+@app.get("/content/{name}", include_in_schema=False)
+def content_file(name: str):
+    path = CONTENT_FILES.get(name)
+    if path is None or not path.exists():
+        return JSONResponse(status_code=404, content={"error": f"{name} not found."})
+    return FileResponse(path)
+
+
+if (REPO / "results" / "figures").is_dir():
+    app.mount("/figures", StaticFiles(directory=REPO / "results" / "figures"), name="figures")
 
 
 # Website (Track C's files). Registered last so the /api routes above always win.

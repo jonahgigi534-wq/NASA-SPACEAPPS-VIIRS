@@ -1,0 +1,54 @@
+[
+ {
+  "name": "West Texas and northern Mexico, Apr-Jul 2011",
+  "region": "texas",
+  "bbox": [
+   -107.0,
+   25.0,
+   -100.0,
+   36.0
+  ],
+  "start": "2011-04-01",
+  "end": "2011-07-31",
+  "why": "April-July 2011: 22,578 harmonized hotspots in this box vs a typical 1,954 for the same months, 1,155% of the 2003-2022 median. Across the whole region the peak month was 562% of median. Texas's record 2011 drought fire season."
+ },
+ {
+  "name": "Northern New Mexico (Texas region box), May 2022",
+  "region": "texas",
+  "bbox": [
+   -106.0,
+   35.0,
+   -105.0,
+   37.0
+  ],
+  "start": "2022-05-01",
+  "end": "2022-05-31",
+  "why": "May 2022: 3,011 harmonized hotspots in this box vs a typical 4 for the same months, 86,025% of the 2003-2022 median (this area normally has almost no fire then). Across the whole region the peak month was 505% of median. The box is the Sangre de Cristo mountains, where the Hermits Peak / Calf Canyon fire burned in spring 2022."
+ },
+ {
+  "name": "Rondonia / Bolivia border, Nov-Dec 2023",
+  "region": "amazon",
+  "bbox": [
+   -64.0,
+   -15.0,
+   -61.0,
+   -13.0
+  ],
+  "start": "2023-11-01",
+  "end": "2023-12-31",
+  "why": "November-December 2023: 7,707 harmonized hotspots in this box vs a typical 144 for the same months, 5,348% of the 2003-2022 median. Across the whole region the peak month was 353% of median. Late-season burning during the 2023 Amazon drought."
+ },
+ {
+  "name": "Northern Australia savannas, Aug-Sep 2011",
+  "region": "australia",
+  "bbox": [
+   125.0,
+   -20.0,
+   143.0,
+   -12.0
+  ],
+  "start": "2011-08-01",
+  "end": "2011-09-30",
+  "why": "August-September 2011: 73,415 harmonized hotspots in this box vs a typical 21,979 for the same months, 334% of the 2003-2022 median. Across the whole region the peak month was 325% of median. Heavy grass fuel after the very wet 2010-11 La Nina years."
+ }
+]

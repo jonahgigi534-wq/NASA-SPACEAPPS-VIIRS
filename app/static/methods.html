@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How FireBridge works: methods, validation and limitations</title>
+  <meta name="description" content="How FireBridge harmonizes MODIS and VIIRS fire hotspots, how it was tested, and its limitations.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M16 2c2 6 9 9 9 17a9 9 0 0 1-18 0c0-5 3-7 4-11 1 3 3 4 3 4s-1-5 2-10z' fill='%23d9480f'/></svg>">
+</head>
+<body>
+  <a class="skip-link" href="#methods-content">Skip to content</a>
+  <header class="site-header">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2c2 6 9 9 9 17a9 9 0 0 1-18 0c0-5 3-7 4-11 1 3 3 4 3 4s-1-5 2-10z"/></svg>
+      <div>
+        <h1>FireBridge</h1>
+        <p class="tagline">Fire activity 2001 → today, from MODIS and VIIRS satellites, on one consistent scale</p>
+      </div>
+    </div>
+    <nav aria-label="Main">
+      <a href="/">Fire calendar</a>
+      <a href="/methods" aria-current="page">How it works</a>
+    </nav>
+  </header>
+
+  <main class="methods">
+    <!-- The server (app/main.py, GET /methods) fills this in from docs/methods_text.md,
+         results/metrics.json and results/figures/, so every number comes from the pipeline. -->
+    <article id="methods-content"><!--METHODS_CONTENT--></article>
+  </main>
+
+  <footer class="site-footer methods">
+    <p><a href="/">← Back to the fire calendar</a></p>
+  </footer>
+  <script>
+    // Opened as /methods.html directly? The content is filled in at /methods.
+    if (document.getElementById("methods-content").children.length === 0) location.replace("/methods");
+  </script>
+</body>
+</html>
