@@ -1,0 +1,14 @@
+# Keep the image small and free of secrets: no data, no virtualenv, no .env.
+.git
+.venv
+.env
+.env.*
+data/
+**/__pycache__
+**/*.pyc
+.pytest_cache
+tests/
+tracks/
+docs/screenshots/
+docs/demo.mp4
+*.zip
