@@ -1,6 +1,6 @@
 # FireBridge: one consistent fire record from 2001 to today
 
-**Live site:** TBD (Hugging Face Space, see [docs/DEPLOY.md](docs/DEPLOY.md)) ·
+**Live site:** <https://firebridge.graycliff-49f97f4e.northcentralus.azurecontainerapps.io> (Azure Container Apps, see [docs/DEPLOY.md](docs/DEPLOY.md)) ·
 **Demo video (29 s):** TBD (YouTube, unlisted; file: [docs/demo.mp4](docs/demo.mp4)) ·
 **Judges:** a two-minute tour of every brief item is at `/judges` on the site ·
 NASA Space Apps 2026 challenge: *Harmonization of MODIS and VIIRS Hot Spots*
