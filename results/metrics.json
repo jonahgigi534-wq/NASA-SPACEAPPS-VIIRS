@@ -304,5 +304,46 @@
     "months": 56
    }
   }
+ },
+ "burned_area_check": {
+  "amazon": {
+   "before_2012_modis": {
+    "months": 132,
+    "r_monthly": 0.952,
+    "hotspots_per_km2": 1.794
+   },
+   "from_2012_harmonized": {
+    "months": 168,
+    "r_monthly": 0.972,
+    "hotspots_per_km2": 1.448
+   },
+   "from_2012_raw_viirs_per_km2": 5.965
+  },
+  "australia": {
+   "before_2012_modis": {
+    "months": 132,
+    "r_monthly": 0.941,
+    "hotspots_per_km2": 0.399
+   },
+   "from_2012_harmonized": {
+    "months": 168,
+    "r_monthly": 0.969,
+    "hotspots_per_km2": 0.506
+   },
+   "from_2012_raw_viirs_per_km2": 2.381
+  },
+  "texas": {
+   "before_2012_modis": {
+    "months": 132,
+    "r_monthly": 0.914,
+    "hotspots_per_km2": 3.122
+   },
+   "from_2012_harmonized": {
+    "months": 168,
+    "r_monthly": 0.758,
+    "hotspots_per_km2": 4.312
+   },
+   "from_2012_raw_viirs_per_km2": 16.926
+  }
  }
 }

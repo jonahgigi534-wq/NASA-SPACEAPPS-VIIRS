@@ -30,6 +30,7 @@ STEPS = [
     ("validate", ["pipeline.validate"], "results/metrics.json + scatter/bias figures"),
     ("app", ["pipeline.build_app_data"], "data/app/ (CONTRACTS.md section 2)"),
     ("robustness", ["pipeline.robustness"], "metrics.json: leave_one_region_out + drift_vs_modis"),
+    ("burned", ["pipeline.burned_area"], "metrics.json burned_area_check + burned_area_check.png"),
     ("continuity", ["pipeline.validate", "--continuity"], "results/figures/continuity_<region>.png"),
     ("presets", ["pipeline.presets"], "docs/presets.json (biggest anomalies)"),
 ]

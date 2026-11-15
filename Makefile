@@ -9,7 +9,7 @@ PY ?= .venv/bin/python
 endif
 RUN = $(PY) -m pipeline.run_all
 
-STEPS = ingest static grid overpass landcover harmonize validate app robustness continuity presets
+STEPS = ingest static grid overpass landcover harmonize validate app robustness burned continuity presets
 
 .PHONY: all $(STEPS) science test sizes list
 

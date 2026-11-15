@@ -991,6 +991,9 @@ FIGURES = [  # (file in results/figures, caption) shown on the Methods page
     ("bias_before_after.png", "Bias against MODIS Aqua before and after harmonizing, by region."),
     ("overpass_times.png", "When each satellite passes over. Terra and Aqua have drifted in "
                            "recent years, which is one of our stated limitations."),
+    ("burned_area_check.png", "An independent yardstick: hotspots per square km burned (MODIS "
+                              "burned area), by year. FireBridge stays level across the 2012 "
+                              "switch; raw VIIRS jumps several times higher."),
 ]
 
 

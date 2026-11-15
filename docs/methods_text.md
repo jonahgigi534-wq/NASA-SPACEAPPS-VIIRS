@@ -117,6 +117,24 @@ It doesn't travel: fire behaves differently in each landscape, so FireBridge nee
 region's own 2012–2018 overlap years. That is fine for any place on Earth, because VIIRS and MODIS
 overlap everywhere from 2012, but it means a new region must be fitted, not borrowed.
 
+**An independent yardstick: burned area.** MODIS Burned Area (MCD64A1) maps the ground that
+burned each month, from one sensor family for the whole record, so it doesn't jump in 2012.
+If the harmonization works, hotspots should track burned area the same way before 2012 (MODIS
+hotspots) and after (harmonized VIIRS). Correlation is of monthly totals; hotspots per km² burned
+is the whole period's total.
+
+| Region | Correlation, 2001–2011 | Correlation, 2012 on | Hotspots per km², 2001–2011 | Harmonized, 2012 on | Raw VIIRS, 2012 on |
+|---|---|---|---|---|---|
+| Texas | 0.914 | 0.758 | 3.122 | 4.312 | 16.926 |
+| Northern Australia | 0.941 | 0.969 | 0.399 | 0.506 | 2.381 |
+| Amazon | 0.952 | 0.972 | 1.794 | 1.448 | 5.965 |
+
+Raw VIIRS would make every region look several times more fire-prone per km² burned after 2012;
+the harmonized record stays in the range MODIS showed before. It is not identical: burned area
+misses many small fires, land use changed (Amazon deforestation fell after the mid-2000s), and
+2001 and early 2002 had only Terra. In Texas the monthly match weakens after 2012, which fits
+VIIRS seeing many small farm burns that never show up as mapped burned area.
+
 ## Data sources
 
 - **NASA FIRMS, MODIS Collection 6.1 active fires** (Terra and Aqua, 1 km).
@@ -129,7 +147,7 @@ overlap everywhere from 2012, but it means a new region must be fitted, not borr
     live near-real-time feed; it is not part of the archive used for fitting or testing.
 - **MODIS Land Cover Type, MCD12Q1 v061** (yearly, IGBP classes), via NASA AppEEARS,
   doi:10.5067/MODIS/MCD12Q1.061. Used to group places by land cover.
-- MODIS Burned Area (MCD64A1 v061) was downloaded but **not used** in this version.
+- **MODIS Burned Area (MCD64A1 v061)**, 500 m monthly, used only as an independent check (Results).
 - Algorithms: Giglio, Schroeder & Justice (2016), *Remote Sensing of Environment* 178, 31–41
   (MODIS C6); Schroeder et al. (2014), *Remote Sensing of Environment* 143, 85–96 (VIIRS 375 m).
 

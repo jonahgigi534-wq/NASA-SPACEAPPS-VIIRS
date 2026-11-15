@@ -64,7 +64,8 @@ METRICS = Path("results/metrics.json")
 def test_metrics_json_matches_contract_shape():
     m = json.loads(METRICS.read_text())
     base = {"winner", "baseline_years", "test_years", "overall", "regions", "notes"}
-    optional = {"leave_one_region_out", "drift_vs_modis"}   # added by pipeline.robustness
+    optional = {"leave_one_region_out", "drift_vs_modis",   # added by pipeline.robustness
+                "burned_area_check"}                         # added by pipeline.burned_area
     assert base <= set(m) <= base | optional
     for r in m.get("leave_one_region_out", {}).values():
         assert set(r) == {"fit_on", "own_region_fit", "other_regions_fit", "other_regions_global_ratio"}
@@ -73,6 +74,10 @@ def test_metrics_json_matches_contract_shape():
     for periods in m.get("drift_vs_modis", {}).values():
         assert set(periods) <= {"2012-2018", "2019-2021", "2022_on"}
         assert all(set(v) == {"bias_pct", "months"} for v in periods.values())
+    for r in m.get("burned_area_check", {}).values():
+        assert set(r) == {"before_2012_modis", "from_2012_harmonized", "from_2012_raw_viirs_per_km2"}
+        for k in ("before_2012_modis", "from_2012_harmonized"):
+            assert set(r[k]) == {"months", "r_monthly", "hotspots_per_km2"}
     for block in [m["overall"], *m["regions"].values()]:
         assert set(block) == {"holdout", "transfer_noaa20"}
         for test in block.values():
