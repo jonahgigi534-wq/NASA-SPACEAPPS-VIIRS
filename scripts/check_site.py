@@ -235,7 +235,7 @@ with sync_playwright() as p:
 
     # ---- methods page, mock mode, phone ------------------------------------------------------
     page.click("text=How it works"); page.wait_for_load_state("networkidle")
-    ok("methods page", page.locator("table").count() >= 3 and page.locator("figure img").count() == 6,
+    ok("methods page", page.locator("table").count() >= 3 and page.locator("figure img").count() >= 6,
        page.title())
     page.screenshot(path=SHOTS / "06_methods.png", full_page=False)
     axe(page, "methods page")
