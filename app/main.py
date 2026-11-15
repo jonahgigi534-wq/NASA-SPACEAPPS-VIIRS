@@ -422,6 +422,7 @@ class Query(BaseModel):
     metric: Literal["count", "frp"] = "count"
     granularity: Optional[Literal["day", "week", "month"]] = None
     as_of: Optional[date] = None      # /api/current: compare a past month instead of this one
+    lang: Literal["en", "es"] = "en"   # language of the plain-language sentences (es = beta)
 
 
 class Context:
@@ -444,7 +445,9 @@ class Context:
         self.area_km2 = covered
         self.n_cells = sum(an.count_grid_cells(self.area, r, parts[r], boxes[r]) for r in parts)
         self.outside_note = None
+        self.outside_share = None
         if whole > 0 and covered / whole < 0.98:
+            self.outside_share = covered / whole
             self.outside_note = (f"Only {round(100 * covered / whole)}% of this area is inside "
                                  "our data regions; the rest is not counted.")
 
@@ -617,7 +620,7 @@ def summary(q: Query):
     s = c.series()
     out = an.summary(s, start, end, c.baseline, c.provisional_after, c.unit_word,
                      {"area_km2": c.area_km2, "cells": c.n_cells, "region": c.region,
-                      "outside_note": c.outside_note})
+                      "outside_note": c.outside_note, "outside_share": c.outside_share}, lang=q.lang)
     return clean(out)
 
 
@@ -640,7 +643,7 @@ def calendar(q: Query):
 def patterns(q: Query):
     """Month x year grid (2001 -> now), years ranked, fire season, high-risk months."""
     c = ctx_for(q)
-    return clean(an.patterns(c.series(), c.baseline, c.provisional_after))
+    return clean(an.patterns(c.series(), c.baseline, c.provisional_after, lang=q.lang))
 
 
 @app.post("/api/current")
@@ -650,7 +653,7 @@ def current(q: Query):
     as_of = min(q.as_of or c.data_end, c.data_end)
     if as_of < c.data_start:
         raise ApiError(f"'as_of' must be after {c.data_start}.")
-    return clean(an.current(c.series(), as_of, c.baseline, c.provisional_after, c.unit_word))
+    return clean(an.current(c.series(), as_of, c.baseline, c.provisional_after, c.unit_word, lang=q.lang))
 
 
 UNUSUAL_MIN_PCT = 300      # this month so far at least 3x the median for the same days...
@@ -730,7 +733,7 @@ def fires(q: Query):
     finally:
         cur.close()
     cl = an.fire_clusters(rec)
-    return clean(an.clusters_response(cl, c.data_end, c.provisional_after, c.unit_word))
+    return clean(an.clusters_response(cl, c.data_end, c.provisional_after, c.unit_word, lang=q.lang))
 
 
 MAP_CELL_CAP = 20_000

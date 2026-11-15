@@ -1,6 +1,8 @@
 // calendar.js: the burning calendar (month x year heatmap) and the day-by-day calendars, in D3.
 // Each SVG carries its own title and legend, so a PNG download stands on its own.
 const CAL = (() => {
+  const ES = typeof I18N !== "undefined" && I18N.es;
+  const L = (en, es) => (ES ? es : en);
   const FONT = "Inter, system-ui, Segoe UI, sans-serif";
   const NS = "http://www.w3.org/2000/svg";
 
@@ -22,10 +24,10 @@ const CAL = (() => {
   }
 
   function describe(c, units) {
-    if (c.missing) return "no satellite data";
+    if (c.missing) return L("no satellite data", "sin datos satelitales");
     let s = `${FMT.int(c.value)} ${units}`;
     if (c.median != null) s += `, normal ${FMT.int(c.median)}`;
-    if (c.pct_of_median != null) s += ` (${FMT.pct(c.pct_of_median)}${c.pct_of_median >= 1000 ? " normal" : " of normal"})`;
+    if (c.pct_of_median != null) s += ` (${FMT.pct(c.pct_of_median)}${c.pct_of_median >= 1000 ? L(" normal", " lo normal") : L(" of normal", " de lo normal")})`;
     if (c.provisional) s += ", provisional";
     return s;
   }
@@ -54,19 +56,19 @@ const CAL = (() => {
     });
     g.append("text").attr("x", x + w + 10).attr("y", y + 9).text(units);
   }
-  function legendAnomaly(g, x, y, w, label = "vs the median for that month") {
+  function legendAnomaly(g, x, y, w, label = L("vs the median for that month", "vs la mediana de ese mes")) {
     const id = "grad-" + Math.random().toString(36).slice(2);
     const grad = g.append("defs").append("linearGradient").attr("id", id);
     d3.range(0, 1.0001, 0.1).forEach((t) => grad.append("stop").attr("offset", `${t * 100}%`)
       .attr("stop-color", d3.interpolatePuOr(t)));   // left: purple (less), right: orange (more)
     g.append("rect").attr("x", x).attr("y", y).attr("width", w).attr("height", 10).attr("fill", `url(#${id})`);
-    [["10× less", 0], ["normal", 0.5], ["10× more", 1]].forEach(([t, f]) =>
+    [[L("10× less", "10× menos"), 0], ["normal", 0.5], [L("10× more", "10× más"), 1]].forEach(([t, f]) =>
       g.append("text").attr("x", x + w * f).attr("y", y + 23).attr("text-anchor", f === 0 ? "start" : f === 1 ? "end" : "middle").text(t));
     g.append("text").attr("x", x + w + 10).attr("y", y + 9).text(label);
   }
   function legendKeys(g, x, y, hatchId) {
     g.append("rect").attr("x", x).attr("y", y).attr("width", 12).attr("height", 12).attr("fill", FMT.MISSING);
-    g.append("text").attr("x", x + 17).attr("y", y + 10).text("no data");
+    g.append("text").attr("x", x + 17).attr("y", y + 10).text(L("no data", "sin datos"));
     g.append("rect").attr("x", x + 80).attr("y", y).attr("width", 12).attr("height", 12).attr("fill", "#fff").attr("stroke", "#888");
     g.append("rect").attr("x", x + 80).attr("y", y).attr("width", 12).attr("height", 12).attr("fill", `url(#${hatchId})`);
     g.append("text").attr("x", x + 97).attr("y", y + 10).text("provisional");
@@ -93,7 +95,7 @@ const CAL = (() => {
     const svg = d3.select(container).append("svg").attr("id", "calendar-svg")
       .attr("viewBox", `0 0 ${width} ${height}`).attr("width", width).attr("xmlns", NS)
       .attr("font-family", FONT).attr("font-size", 10).attr("fill", FMT.ink)
-      .attr("role", "group").attr("aria-label", `Burning calendar: ${opts.units} per month, ${years[0]} to ${years[years.length - 1]}`);
+      .attr("role", "group").attr("aria-label", L(`Burning calendar: ${opts.units} per month, ${years[0]} to ${years[years.length - 1]}`, `Calendario de quemas: ${opts.units} por mes, ${years[0]} a ${years[years.length - 1]}`));
     hatchDefs(svg, hatchId);
     svg.append("rect").attr("width", width).attr("height", height).attr("fill", "#fff");
     svg.append("text").attr("x", left).attr("y", 16).attr("font-size", 13).attr("font-weight", 600).text(opts.title);
@@ -101,7 +103,7 @@ const CAL = (() => {
     // year labels
     years.forEach((y, i) => svg.append("text").attr("x", left + i * cw + cw / 2 - 1).attr("y", top - 6)
       .attr("text-anchor", "middle").attr("font-size", 9.5).text(`'${String(y).slice(2)}`));
-    svg.append("text").attr("x", left).attr("y", 33).attr("font-size", 10).attr("fill", "#5b6168").text("year →");
+    svg.append("text").attr("x", left).attr("y", 33).attr("font-size", 10).attr("fill", "#5b6168").text(L("year →", "año →"));
     FMT.MON.forEach((m, i) => svg.append("text").attr("x", left - 6).attr("y", top + i * ch + ch / 2 + 3.5)
       .attr("text-anchor", "end").text(m));
 
@@ -117,7 +119,7 @@ const CAL = (() => {
           : opts.view === "anomaly" ? (FMT.anomalyColor(c.value, c.median) || FMT.MISSING) : scale(c.value || 0);
         const g = grid.append("g").attr("class", "cal-cell").attr("tabindex", 0).attr("role", "button")
           .attr("data-x", xi).attr("data-y", m - 1).attr("data-period", key)
-          .attr("aria-label", `${FMT.MONTHS[m - 1]} ${y}: ${describe(c, opts.units)}. Press Enter for days.`);
+          .attr("aria-label", `${FMT.MONTHS[m - 1]} ${y}: ${describe(c, opts.units)}. ${L("Press Enter for days.", "Pulse Intro para ver los días.")}`);
         g.append("rect").attr("class", "cell").attr("x", x).attr("y", yy).attr("width", cw - gap).attr("height", ch - gap)
           .attr("rx", 2).attr("fill", fill);
         if (c.provisional && !c.missing) g.append("rect").attr("x", x).attr("y", yy).attr("width", cw - gap)
@@ -146,7 +148,7 @@ const CAL = (() => {
     const lg = svg.append("g").attr("font-size", 10.5);
     const ly = top + gridH + 18;
     if (opts.view === "anomaly") legendAnomaly(lg, left, ly, 220);
-    else legendCounts(lg, left, ly, 220, scale, max, lo, opts.units + " per month");
+    else legendCounts(lg, left, ly, 220, scale, max, lo, opts.units + L(" per month", " por mes"));
     legendKeys(lg, left + 520 > width - 180 ? left : width - 190, ly + (left + 520 > width - 180 ? 34 : 0), hatchId);
     if (left + 520 > width - 180) svg.attr("viewBox", `0 0 ${width} ${height + 26}`);
   }
@@ -180,7 +182,7 @@ const CAL = (() => {
     hatchDefs(svg, hatchId);
     svg.append("rect").attr("width", width).attr("height", height).attr("fill", "#fff");
     svg.append("text").attr("x", left).attr("y", 18).attr("font-size", 13).attr("font-weight", 600).text(opts.title);
-    ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].forEach((d, i) => svg.append("text")
+    (ES ? ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"] : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]).forEach((d, i) => svg.append("text")
       .attr("x", left + i * cw + (cw - gap) / 2).attr("y", top - 8).attr("text-anchor", "middle").attr("fill", "#5b6168").text(d));
     cells.forEach((c, i) => {
       const k = offset + i, x = left + (k % 7) * cw, y = top + Math.floor(k / 7) * ch;
@@ -199,7 +201,7 @@ const CAL = (() => {
         .on("mouseleave", () => tooltip(null));
     });
     const lg = svg.append("g").attr("font-size", 10.5);
-    legendAnomaly(lg, left, top + rows * ch + 12, 180, "vs normal for that time of year");
+    legendAnomaly(lg, left, top + rows * ch + 12, 180, L("vs normal for that time of year", "vs lo normal en esa época del año"));
     legendKeys(lg, left, top + rows * ch + 40, hatchId);
   }
 
@@ -222,7 +224,7 @@ const CAL = (() => {
     const svg = d3.select(container).append("svg").attr("id", "calendar-svg")
       .attr("viewBox", `0 0 ${width} ${height}`).attr("width", width).attr("xmlns", NS)
       .attr("font-family", FONT).attr("font-size", 10).attr("fill", FMT.ink)
-      .attr("role", "group").attr("aria-label", `Burning calendar by week: ${opts.units} per week, ${years[0]} to ${years[years.length - 1]}`);
+      .attr("role", "group").attr("aria-label", L(`Burning calendar by week: ${opts.units} per week, ${years[0]} to ${years[years.length - 1]}`, `Calendario de quemas por semana: ${opts.units} por semana, ${years[0]} a ${years[years.length - 1]}`));
     hatchDefs(svg, hatchId);
     svg.append("rect").attr("width", width).attr("height", height).attr("fill", "#fff");
     svg.append("text").attr("x", left).attr("y", 16).attr("font-size", 13).attr("font-weight", 600).text(opts.title);
@@ -231,7 +233,7 @@ const CAL = (() => {
       const w = FMT.isoWeekOf(new Date(Date.UTC(2025, i, 1)))[1];
       svg.append("text").attr("x", left + (w - 1) * cw).attr("y", top - 8).attr("font-size", 10).text(mName);
     });
-    svg.append("text").attr("x", left).attr("y", 33).attr("font-size", 10).attr("fill", "#5b6168").text("ISO week →");
+    svg.append("text").attr("x", left).attr("y", 33).attr("font-size", 10).attr("fill", "#5b6168").text(L("ISO week →", "semana ISO →"));
     years.forEach((y, i) => svg.append("text").attr("x", left - 6).attr("y", top + i * ch + ch / 2 + 3.5)
       .attr("text-anchor", "end").attr("font-size", 9.5).text(y));
 
@@ -248,14 +250,14 @@ const CAL = (() => {
         const range = FMT.weekRange(y, w);
         const g = grid.append("g").attr("class", "cal-cell").attr("tabindex", 0).attr("role", "button")
           .attr("data-x", w - 1).attr("data-y", yi).attr("data-period", key)
-          .attr("aria-label", `Week ${w} of ${y}, ${range}: ${describe(c, opts.units)}. Press Enter for days.`);
+          .attr("aria-label", `${L("Week", "Semana")} ${w} ${L("of", "de")} ${y}, ${range}: ${describe(c, opts.units)}. ${L("Press Enter for days.", "Pulse Intro para ver los días.")}`);
         g.append("rect").attr("class", "cell").attr("x", x).attr("y", yy).attr("width", cw - gap)
           .attr("height", ch - gap).attr("rx", 1.5).attr("fill", fill);
         if (c.provisional && !c.missing) g.append("rect").attr("x", x).attr("y", yy).attr("width", cw - gap)
           .attr("height", ch - gap).attr("fill", `url(#${hatchId})`).attr("pointer-events", "none");
         g.on("click", () => opts.onPick(key))
           .on("keydown", (ev) => onKey(ev, grid, key, opts))
-          .on("mousemove", (ev) => tooltip(`<b>Week ${w}, ${y}</b> (${range})<br>${describe(c, opts.units)}`, ev))
+          .on("mousemove", (ev) => tooltip(`<b>${L("Week", "Semana")} ${w}, ${y}</b> (${range})<br>${describe(c, opts.units)}`, ev))
           .on("mouseleave", () => tooltip(null));
         if (rs && re) {
           const mon = FMT.iso(FMT.isoMonday(y, w));
@@ -271,7 +273,7 @@ const CAL = (() => {
     const lg = svg.append("g").attr("font-size", 10.5);
     const ly = top + gridH + 18;
     if (opts.view === "anomaly") legendAnomaly(lg, left, ly, 220, "vs the median for that week");
-    else legendCounts(lg, left, ly, 220, scale, max, lo, opts.units + " per week");
+    else legendCounts(lg, left, ly, 220, scale, max, lo, opts.units + L(" per week", " por semana"));
     legendKeys(lg, left, ly + 36, hatchId);
   }
 

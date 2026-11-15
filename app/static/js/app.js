@@ -6,11 +6,13 @@
     mode: "harmonized", metric: "count", calview: "counts", calgran: "month", tab: "calendar", dataStart: "2001-01-01", dataEnd: null,
     calendarCells: [], weekCells: null, presetIndex: null, mapview: "counts",
   };
-  const UNITS = { harmonized: "hotspots", modis_only: "MODIS hotspots", viirs_raw: "VIIRS hotspots" };
+  const ES = I18N.es, t = I18N.t;
+  const UNITS = ES ? { harmonized: "focos de calor", modis_only: "focos MODIS", viirs_raw: "focos VIIRS" }
+                   : { harmonized: "hotspots", modis_only: "MODIS hotspots", viirs_raw: "VIIRS hotspots" };
   const MODE_HINT = {
-    harmonized: "Harmonized: VIIRS translated to the MODIS scale, so 2001–today is one consistent series.",
-    modis_only: "MODIS only: the original Terra + Aqua detections (1 km pixels). Consistent, but MODIS is ending in 2027.",
-    viirs_raw: "Raw VIIRS: 375 m detections as reported, from 2012. Not comparable with MODIS years: it sees far more hotspots.",
+    harmonized: I18N.t("Harmonized: VIIRS translated to the MODIS scale, so 2001–today is one consistent series."),
+    modis_only: I18N.t("MODIS only: the original Terra + Aqua detections (1 km pixels). Consistent, but MODIS is ending in 2027."),
+    viirs_raw: I18N.t("Raw VIIRS: 375 m detections as reported, from 2012. Not comparable with MODIS years: it sees far more hotspots."),
   };
   const TABS = ["calendar", "patterns", "now", "fires"];
 
@@ -31,10 +33,10 @@
   }
   function body(extra = {}) {
     return { area: state.area, start: state.start, end: state.end, baseline: state.baseline,
-             mode: state.mode, metric: state.metric, ...extra };
+             mode: state.mode, metric: state.metric, lang: I18N.lang, ...extra };
   }
   function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
-  const units = () => (state.metric === "frp" ? "MW of fire power" : UNITS[state.mode]);
+  const units = () => (state.metric === "frp" ? (ES ? "MW de potencia de fuego" : "MW of fire power") : UNITS[state.mode]);
 
   // ---------------------------------------------------------------- shareable links
   // The whole view lives in the address (#area=…&start=…), so a link reopens exactly this view.
@@ -130,7 +132,7 @@
       await renderCalendar();
       renderPatterns(patterns);
       await renderNow(current);
-      CHARTS.longterm(ts, state.mode, state.metric === "frp" ? "MW of fire power per month" : "hotspots per month");
+      CHARTS.longterm(ts, state.mode, ES ? (state.metric === "frp" ? "MW de potencia de fuego por mes" : "focos por mes") : (state.metric === "frp" ? "MW of fire power per month" : "hotspots per month"));
       firesKey = null;
       MAP.clearHighlight();
       if (state.tab === "fires") loadFires();
@@ -162,38 +164,38 @@
     $("area-label").textContent = state.areaLabel;
     const km = s.area_km2 ? `${FMT.int(s.area_km2)} km²` : "";
     $("range-label").textContent = `${FMT.date(s.range.start)} – ${FMT.date(s.range.end)} · ${km} · ` +
-      `normal = median of ${state.baseline[0]}–${state.baseline[1]}`;
+      (ES ? `normal = mediana de ${state.baseline[0]}–${state.baseline[1]}` : `normal = median of ${state.baseline[0]}–${state.baseline[1]}`);
     // every day missing (e.g. raw VIIRS before 2012): that's "no data", not "0 fires"
     const days = Math.round((Date.parse(s.range.end) - Date.parse(s.range.start)) / 864e5) + 1;
     const allMissing = s.missing_days >= days;
-    $("kf-total").textContent = allMissing ? "No data" : FMT.int(k.total_hotspots);
-    $("kf-total-label").textContent = state.metric === "frp" ? "Fire power in range" : "Hotspots in range";
-    $("kf-total-sub").textContent = allMissing ? "no satellite data for these dates"
-      : state.metric === "frp" ? "MW, summed (MODIS scale)"
-      : state.mode === "harmonized" ? "MODIS-scale hotspots" : units();
+    $("kf-total").textContent = allMissing ? t("No data") : FMT.int(k.total_hotspots);
+    $("kf-total-label").textContent = t(state.metric === "frp" ? "Fire power in range" : "Hotspots in range");
+    $("kf-total-sub").textContent = allMissing ? t("no satellite data for these dates")
+      : state.metric === "frp" ? t("MW, summed (MODIS scale)")
+      : state.mode === "harmonized" ? t("MODIS-scale hotspots") : units();
     $("kf-pct").textContent = FMT.pct(k.pct_of_median);
     $("kf-pct").classList.toggle("hot", k.pct_of_median >= 150);
     $("kf-pct-sub").textContent = FMT.pctSub(k.pct_of_median);
     $("kf-month").textContent = FMT.monthLabel(k.busiest_month);
     $("kf-year").textContent = k.busiest_year ?? "–";
     const multiYear = s.range.end.slice(0, 4) !== s.range.start.slice(0, 4);
-    $("kf-year-sub").textContent = multiYear ? "in range" : "on record";
+    $("kf-year-sub").textContent = t(multiYear ? "in range" : "on record");
     const fs = k.fire_season;
     $("kf-season").textContent = fs ? `${FMT.MON[+fs.start.slice(0, 2) - 1]}–${FMT.MON[+fs.end.slice(0, 2) - 1]}` : "–";
-    $("kf-season-sub").textContent = fs ? `peak ${FMT.mmdd(fs.peak)}` : "";
+    $("kf-season-sub").textContent = fs ? `${ES ? "pico" : "peak"} ${FMT.mmdd(fs.peak)}` : "";
     $("summary-text").textContent = s.summary_text;
   }
 
   async function renderCalendar() {
     const weekly = state.calgran === "week";
-    $("calendar-title").textContent = weekly ? "Hotspots per week, 2001 → today" : "Hotspots per month, 2001 → today";
+    $("calendar-title").textContent = t(weekly ? "Hotspots per week, 2001 → today" : "Hotspots per month, 2001 → today");
     $("calendar-help").textContent = weekly
-      ? "Each square is one week (Monday to Sunday). Click (or press Enter on) a week to see its days."
-      : "Each square is one month. Click (or press Enter on) a month to see its days.";
+      ? t("Each square is one week (Monday to Sunday). Click (or press Enter on) a week to see its days.")
+      : t("Each square is one month. Click (or press Enter on) a month to see its days.");
     if (!weekly) {
       CAL.months($("calendar"), state.calendarCells, {
         view: state.calview, units: units(), range: [state.start, state.end],
-        title: `${state.areaLabel}: ${state.calview === "anomaly" ? "each month vs its normal" : `${units()} per month`}`,
+        title: `${state.areaLabel}: ${state.calview === "anomaly" ? (ES ? "cada mes vs su normal" : "each month vs its normal") : `${units()} ${ES ? "por mes" : "per month"}`}`,
         onPick: openMonth,
       });
       return;
@@ -207,7 +209,7 @@
     }
     CAL.weeks($("calendar"), state.weekCells, {
       view: state.calview, units: units(), range: [state.start, state.end],
-      title: `${state.areaLabel}: ${state.calview === "anomaly" ? "each week vs its normal" : `${units()} per week`}`,
+      title: `${state.areaLabel}: ${state.calview === "anomaly" ? (ES ? "cada semana vs su normal" : "each week vs its normal") : `${units()} ${ES ? "por semana" : "per week"}`}`,
       onPick: openWeek,
     });
   }
@@ -222,7 +224,7 @@
     try {
       const r = await API.calendarDay(body({ start, end, granularity: "day" }));
       $("daily-card").hidden = false;
-      const title = `Week ${w} of ${y} (${FMT.weekRange(y, w)}), day by day`;
+      const title = ES ? `Semana ${w} de ${y} (${FMT.weekRange(y, w)}), día a día` : `Week ${w} of ${y} (${FMT.weekRange(y, w)}), day by day`;
       $("daily-title").textContent = title;
       CAL.days($("daily"), r.cells, { id: "daily-svg", title: `${state.areaLabel}: ${title}`, units: units() });
       $("daily-card").scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -237,7 +239,7 @@
     try {
       const r = await API.calendarDay(body({ start: `${period}-01`, end, granularity: "day" }));
       $("daily-card").hidden = false;
-      const title = `${FMT.MONTHS[m - 1]} ${y}, day by day`;
+      const title = ES ? `${FMT.MONTHS[m - 1]} de ${y}, día a día` : `${FMT.MONTHS[m - 1]} ${y}, day by day`;
       $("daily-title").textContent = title;
       CAL.days($("daily"), r.cells, { id: "daily-svg", title: `${state.areaLabel}: ${title}`, units: units() });
       $("daily-card").scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -250,14 +252,15 @@
     const fs = p.fire_season;
     const hr = p.high_risk_months.map((m) => FMT.MONTHS[m - 1]).join(", ");
     $("season-text").textContent = fs
-      ? `Fire season (shaded): ${FMT.mmdd(fs.start)} to ${FMT.mmdd(fs.end)}, peaking around ${FMT.mmdd(fs.peak)}; it holds ${Math.round(fs.share_of_year * 100)}% of a typical year's hotspots. Highest-risk months (orange): ${hr || "none"}.`
-      : "Too few hotspots here to define a fire season.";
+      ? (ES ? `Temporada de incendios (sombreada): del ${FMT.mmdd(fs.start)} al ${FMT.mmdd(fs.end)}, con el pico hacia el ${FMT.mmdd(fs.peak)}; reúne el ${Math.round(fs.share_of_year * 100)} % de los focos de un año típico. Meses de mayor riesgo (naranja): ${hr ? hr.replace(/, ([^,]*)$/, " y $1") : "ninguno"}.`
+            : `Fire season (shaded): ${FMT.mmdd(fs.start)} to ${FMT.mmdd(fs.end)}, peaking around ${FMT.mmdd(fs.peak)}; it holds ${Math.round(fs.share_of_year * 100)}% of a typical year's hotspots. Highest-risk months (orange): ${hr || "none"}.`)
+      : t("Too few hotspots here to define a fire season.");
     $("weeks-text").textContent = weeksText(p.high_risk_weeks || []);
     const tr = p.trend, te = $("trend-text");
-    te.textContent = tr ? `Long-term trend: ${tr.text}` : "Long-term trend: too few complete years to judge.";
+    te.textContent = tr ? `${ES ? "Tendencia a largo plazo" : "Long-term trend"}: ${tr.text}` : t("Long-term trend: too few complete years to judge.");
     te.className = `trend ${tr ? tr.direction : ""}`;
     const top = p.years_ranked.slice(0, 3).map((r) => `${r.year} (${FMT.int(r.total)})`).join(", ");
-    $("years-text").textContent = top ? `Busiest years: ${top}. Only complete years are ranked.` : "No complete years to rank.";
+    $("years-text").textContent = top ? (ES ? `Años con más fuego: ${top}. Solo se ordenan los años completos.` : `Busiest years: ${top}. Only complete years are ranked.`) : t("No complete years to rank.");
     const row = $("chance-row");
     row.innerHTML = "";
     p.chance_unusual_month.forEach((c) => {
@@ -289,16 +292,19 @@
     });
     const nums = runs.map(([a, b]) => (a === b ? `${a}` : `${a}–${b}`)).join(", ");
     const list = dates.length > 1 ? `${dates.slice(0, -1).join(", ")} and ${dates.at(-1)}` : dates[0];
-    return `Highest-risk weeks: ${list} (ISO weeks ${nums}; dates for ${y}).`;
+    return ES ? `Semanas de mayor riesgo: ${list.replace(/ and /g, " y ")} (semanas ISO ${nums}; fechas de ${y}).`
+              : `Highest-risk weeks: ${list} (ISO weeks ${nums}; dates for ${y}).`;
   }
 
   async function renderNow(cur) {
-    $("now-title").textContent = `${FMT.MONTHS[+cur.month.slice(5) - 1]} ${cur.month.slice(0, 4)} so far (days 1–${cur.days_so_far})`;
+    $("now-title").textContent = ES ? `${FMT.MONTHS[+cur.month.slice(5) - 1]} de ${cur.month.slice(0, 4)} hasta ahora (días 1–${cur.days_so_far})`
+      : `${FMT.MONTHS[+cur.month.slice(5) - 1]} ${cur.month.slice(0, 4)} so far (days 1–${cur.days_so_far})`;
     $("now-pct").textContent = FMT.pct(cur.pct_of_median);
-    $("now-pct-sub").textContent = cur.pct_of_median == null ? "can't compare with normal"
-      : (cur.pct_of_median >= 1000 ? "the median for these days" : "of the median for these days");
+    $("now-pct-sub").textContent = t(cur.pct_of_median == null ? "can't compare with normal"
+      : (cur.pct_of_median >= 1000 ? "the median for these days" : "of the median for these days"));
     $("now-rank").textContent = cur.rank_among_years
-      ? `#${cur.rank_among_years} of ${cur.of_years} years${cur.provisional ? " · provisional" : ""}` : "";
+      ? (ES ? `n.º ${cur.rank_among_years} de ${cur.of_years} años${cur.provisional ? " · provisional" : ""}`
+            : `#${cur.rank_among_years} of ${cur.of_years} years${cur.provisional ? " · provisional" : ""}`) : "";
     $("now-text").textContent = cur.summary_text;
     CHARTS.now(cur, units());
     const [r] = await Promise.all([
@@ -306,9 +312,10 @@
         end: `${cur.month}-${String(cur.days_so_far).padStart(2, "0")}`, granularity: "day" })),
       renderLastMonth(cur),
     ]);
-    $("now-daily-title").textContent = `${FMT.MONTHS[+cur.month.slice(5) - 1]} ${cur.month.slice(0, 4)}, day by day vs normal`;
+    $("now-daily-title").textContent = ES ? `${FMT.MONTHS[+cur.month.slice(5) - 1]} de ${cur.month.slice(0, 4)}, día a día vs lo normal`
+      : `${FMT.MONTHS[+cur.month.slice(5) - 1]} ${cur.month.slice(0, 4)}, day by day vs normal`;
     CAL.days($("now-daily"), r.cells, { id: "now-daily-svg", units: units(),
-      title: `${state.areaLabel}: ${FMT.monthLabel(cur.month)} day by day` });
+      title: `${state.areaLabel}: ${FMT.monthLabel(cur.month)} ${ES ? "día a día" : "day by day"}` });
   }
 
   // In the first week of a month "so far" rests on a few days, so also show the last full month.
@@ -320,11 +327,12 @@
     const asOf = new Date(Date.UTC(y, m - 1, 0)).toISOString().slice(0, 10);   // last day of last month
     try {
       const p = await API.current(body({ start: null, end: null, as_of: asOf }));
-      const name = `${FMT.MONTHS[+p.month.slice(5) - 1]} ${p.month.slice(0, 4)}`;
-      let txt = `Last full month, ${name}: ${FMT.int(p.value_so_far)} ${units()}`;
-      if (p.median_same_days != null) txt += ` vs a typical ${FMT.int(p.median_same_days)}`;
-      if (p.pct_of_median != null) txt += ` (${FMT.pct(p.pct_of_median)}${p.pct_of_median >= 1000 ? " normal" : " of normal"})`;
-      if (p.rank_among_years) txt += `, #${p.rank_among_years} of ${p.of_years} years`;
+      const name = `${FMT.MONTHS[+p.month.slice(5) - 1]}${ES ? " de" : ""} ${p.month.slice(0, 4)}`;
+      let txt = ES ? `Último mes completo, ${name}: ${FMT.int(p.value_so_far)} ${units()}`
+                   : `Last full month, ${name}: ${FMT.int(p.value_so_far)} ${units()}`;
+      if (p.median_same_days != null) txt += ES ? ` frente a ${FMT.int(p.median_same_days)} lo típico` : ` vs a typical ${FMT.int(p.median_same_days)}`;
+      if (p.pct_of_median != null) txt += ` (${FMT.pct(p.pct_of_median)}${p.pct_of_median >= 1000 ? (ES ? " lo normal" : " normal") : (ES ? " de lo normal" : " of normal")})`;
+      if (p.rank_among_years) txt += ES ? `, n.º ${p.rank_among_years} de ${p.of_years} años` : `, #${p.rank_among_years} of ${p.of_years} years`;
       el.textContent = txt + ".";
       el.hidden = false;
     } catch (_) { /* optional extra: skip quietly */ }
@@ -428,14 +436,14 @@
     slider.max = String(mapMonths.length);
     slider.value = "0";
     stopPlay();
-    $("map-month-label").textContent = "All selected dates";
+    $("map-month-label").textContent = t("All selected dates");
   }
   async function refreshMap() {
     if (!state.area) return;
     const view = state.mapview;
     if (view === "off") { MAP.showCells(null, "off"); return; }
     const i = +$("map-month").value;
-    let start = state.start, end = state.end, caption = "All selected dates";
+    let start = state.start, end = state.end, caption = t("All selected dates");
     if (i > 0 && mapMonths[i - 1]) {
       const m = mapMonths[i - 1];
       const monthEnd = FMT.iso(new Date(Date.UTC(+m.slice(0, 4), +m.slice(5, 7), 0)));
@@ -487,7 +495,7 @@
     const key = JSON.stringify([state.area, state.mode]);
     if (key === firesKey) return;
     firesKey = key;
-    $("fires-text").textContent = "Grouping hotspots into fire clusters…";
+    $("fires-text").textContent = t("Grouping hotspots into fire clusters…");
     busy(true);
     try {
       const j = await API.fires(body({ start: null, end: null, metric: "count" }));
@@ -501,17 +509,20 @@
   function renderFires(j) {
     const u = UNITS[state.mode];
     $("fires-text").textContent = j.summary_text || "";
-    $("fires-rule").textContent = `A fire cluster = ${j.link_rule}; clusters under ${j.min_hotspots} hotspots are left out. ` +
-      `${FMT.int(j.clusters_total)} clusters in this area.`;
+    $("fires-rule").textContent = ES
+      ? `Un grupo de incendios = celdas de 0,1° con focos que se tocan el mismo día o con hasta 2 días de diferencia; ` +
+        `se omiten los grupos de menos de ${j.min_hotspots} focos. ${FMT.int(j.clusters_total)} grupos en esta zona.`
+      : `A fire cluster = ${j.link_rule}; clusters under ${j.min_hotspots} hotspots are left out. ` +
+        `${FMT.int(j.clusters_total)} clusters in this area.`;
     if (j.all.length) CHARTS.fires(j, u);
-    const head = `<thead><tr><th scope="col">Dates</th><th scope="col" class="num">Days</th><th scope="col" class="num">${u}</th>` +
-      `<th scope="col" class="num">Fire power (MW)</th><th scope="col" class="num">Size rank</th><th scope="col"><span class="sr-only">Show</span></th></tr></thead>`;
+    const head = `<thead><tr><th scope="col">${t("Dates")}</th><th scope="col" class="num">${t("Days")}</th><th scope="col" class="num">${u}</th>` +
+      `<th scope="col" class="num">${t("Fire power (MW)")}</th><th scope="col" class="num">${t("Size rank")}</th><th scope="col"><span class="sr-only">${t("Show")}</span></th></tr></thead>`;
     const rowHtml = (c, i, latest) => {
       const when = c.days > 1 ? `${FMT.date(c.start)} – ${FMT.date(c.end)}` : FMT.date(c.start);
       return `<tr class="${latest && i === 0 ? "latest" : ""}"><td>${when}${c.provisional ? '<span class="tag">provisional</span>' : ""}</td>` +
         `<td class="num">${c.days}</td><td class="num">${FMT.int(c.hotspots)}</td><td class="num">${FMT.int(c.fire_power_mw)}</td>` +
-        `<td class="num">${FMT.int(c.rank)} of ${FMT.int(c.of)}</td>` +
-        `<td><button type="button" class="btn btn-small" data-fire="${latest ? "l" : "g"}${i}" aria-label="Show the fire of ${when} on the map">Show</button></td></tr>`;
+        `<td class="num">${FMT.int(c.rank)} ${ES ? "de" : "of"} ${FMT.int(c.of)}</td>` +
+        `<td><button type="button" class="btn btn-small" data-fire="${latest ? "l" : "g"}${i}" aria-label="${ES ? `Ver el incendio del ${when} en el mapa` : `Show the fire of ${when} on the map`}">${t("Show")}</button></td></tr>`;
     };
     $("fires-latest").innerHTML = head + "<tbody>" + j.latest.map((c, i) => rowHtml(c, i, true)).join("") + "</tbody>";
     $("fires-largest").innerHTML = head + "<tbody>" + j.largest.map((c, i) => rowHtml(c, i, false)).join("") + "</tbody>";
@@ -530,9 +541,13 @@
     try { u = await API.unusual(); } catch (_) { return; }
     if (!u.tiles.length) return;
     const fmtDeg = (v, pos, neg) => `${Math.abs(v).toFixed(1)}°${v >= 0 ? pos : neg}`;
-    $("unusual-title").textContent = `Unusual right now (${FMT.MON[+u.month.slice(5) - 1]} 1–${u.days_so_far})`;
-    $("unusual-hint").textContent = `1° squares where this month so far is at least ${u.min_pct / 100}× the 2003–2022 median for the same days, ` +
-      `with ${u.min_hotspots}+ hotspots${u.provisional ? "; provisional near-real-time data" : ""}. ${u.tiles_total} squares qualify; the biggest excesses:`;
+    const mon = FMT.MON[+u.month.slice(5) - 1];
+    $("unusual-title").textContent = ES ? `Inusual ahora mismo (1–${u.days_so_far} ${mon})` : `Unusual right now (${mon} 1–${u.days_so_far})`;
+    $("unusual-hint").textContent = ES
+      ? `Cuadros de 1° donde este mes, hasta ahora, llega al menos a ${String(u.min_pct / 100).replace(".", ",")}× la mediana 2003–2022 de los mismos días, ` +
+        `con ${u.min_hotspots}+ focos${u.provisional ? "; datos provisionales casi en tiempo real" : ""}. Cumplen ${u.tiles_total} cuadros; los mayores excesos:`
+      : `1° squares where this month so far is at least ${u.min_pct / 100}× the 2003–2022 median for the same days, ` +
+        `with ${u.min_hotspots}+ hotspots${u.provisional ? "; provisional near-real-time data" : ""}. ${u.tiles_total} squares qualify; the biggest excesses:`;
     const box = $("unusual-list");
     box.innerHTML = "";
     u.tiles.slice(0, 5).forEach((t) => {
@@ -541,7 +556,9 @@
       const where = `${t.region_name}, ${fmtDeg(t.lat, "N", "S")} ${fmtDeg(t.lon, "E", "W")}`;
       b.innerHTML = "<strong></strong><span></span>";
       b.querySelector("strong").textContent = where;
-      b.querySelector("span").textContent = `${FMT.int(t.value)} hotspots vs a typical ${FMT.int(t.median)} (${FMT.pct(t.pct_of_median)}${t.pct_of_median >= 1000 ? " normal" : " of normal"})`;
+      b.querySelector("span").textContent = ES
+        ? `${FMT.int(t.value)} focos frente a ${FMT.int(t.median)} lo típico (${FMT.pct(t.pct_of_median)}${t.pct_of_median >= 1000 ? " lo normal" : " de lo normal"})`
+        : `${FMT.int(t.value)} hotspots vs a typical ${FMT.int(t.median)} (${FMT.pct(t.pct_of_median)}${t.pct_of_median >= 1000 ? " normal" : " of normal"})`;
       b.addEventListener("click", () => {
         const area = { type: "bbox", bbox: t.bbox };
         setDates(`${u.month}-01`, u.as_of);
@@ -577,14 +594,18 @@
       });
       const A = col(a), B = col(b);
       const ratio = b.key_figures.total_hotspots > 0 ? a.key_figures.total_hotspots / b.key_figures.total_hotspots : null;
-      const rows = [["Dates", A.dates, B.dates], [`Total (${units()})`, A.total, B.total], ["vs normal", A.pct, B.pct],
-                    ["Busiest month", A.month, B.month], ["Days with no data", A.missing, B.missing]];
-      const t = $("compare-table");
-      t.innerHTML = `<caption class="sr-only">Your dates compared with another period</caption><thead><tr><th scope="col"></th><th scope="col">Your dates</th><th scope="col">Other period</th></tr></thead><tbody>` +
+      const rows = [[t("Dates"), A.dates, B.dates], [`Total (${units()})`, A.total, B.total], [t("vs normal"), A.pct, B.pct],
+                    [t("Busiest month"), A.month, B.month], [t("Days with no data"), A.missing, B.missing]];
+      const ratioText = ratio == null ? "" : ES
+        ? (ratio >= 1 ? `${ratio.toFixed(1).replace(".", ",")} veces más` : `${Math.round(ratio * 100)}% del otro`)
+        : (ratio >= 1 ? `${ratio.toFixed(1)}× as many` : `${Math.round(ratio * 100)}% as many`);
+      const tbl = $("compare-table");
+      tbl.innerHTML = `<caption class="sr-only">${ES ? "Sus fechas comparadas con otro período" : "Your dates compared with another period"}</caption>` +
+        `<thead><tr><th scope="col"></th><th scope="col">${t("Your dates")}</th><th scope="col">${t("Other period")}</th></tr></thead><tbody>` +
         rows.map(([k, x, y]) => `<tr><th scope="row">${k}</th><td>${x}</td><td>${y}</td></tr>`).join("") +
-        (ratio != null ? `<tr><th scope="row">Your dates vs other</th><td colspan="2">${ratio >= 1 ? `${ratio.toFixed(1)}× as many` : `${Math.round(ratio * 100)}% as many`}</td></tr>` : "") +
+        (ratio != null ? `<tr><th scope="row">${ES ? "Sus fechas vs el otro" : "Your dates vs other"}</th><td colspan="2">${ratioText}</td></tr>` : "") +
         "</tbody>";
-      t.hidden = false;
+      tbl.hidden = false;
     } catch (e) { failed(e); } finally { busy(false); }
   }
 
@@ -725,9 +746,9 @@
     $("copy-link").addEventListener("click", async () => {
       writeHash();
       const btn = $("copy-link");
-      try { await navigator.clipboard.writeText(location.href); btn.textContent = "Link copied"; }
+      try { await navigator.clipboard.writeText(location.href); btn.textContent = t("Link copied"); }
       catch (_) { window.prompt("Copy this link:", location.href); }
-      setTimeout(() => { btn.textContent = "Copy link"; }, 1800);
+      setTimeout(() => { btn.textContent = t("Copy link"); }, 1800);
     });
 
     // downloads
@@ -747,7 +768,7 @@
     if (!state.area) return;
     btn.disabled = true;
     const label = btn.textContent;
-    btn.textContent = "Preparing…";
+    btn.textContent = t("Preparing…");
     try { await API.downloadCSV(endpoint, body({ granularity: "day" }), name); }
     catch (e) { failed(e); }
     finally { btn.disabled = false; btn.textContent = label; }

@@ -1,34 +1,40 @@
 // format.js: numbers, dates and colors shared by every chart.
 const FMT = (() => {
-  const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August",
-                  "September", "October", "November", "December"];
-  const MON = MONTHS.map((m) => m.slice(0, 3));
+  const ES = typeof I18N !== "undefined" && I18N.es;
+  const MONTHS = ES
+    ? ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+    : ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const MON = ES ? ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+                 : MONTHS.map((m) => m.slice(0, 3));
 
-  const int = (v) => (v == null || isNaN(v)) ? "–" : Math.round(v).toLocaleString("en-US");
+  // 22,578 in English; 22.578 in Spanish (same as the server's Spanish sentences)
+  const int = (v) => (v == null || isNaN(v)) ? "–"
+    : ES ? String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ".") : Math.round(v).toLocaleString("en-US");
 
   // % of median, readable even when it's huge: 312% -> "312%", 1155% -> "11.6×"
   function pct(p) {
     if (p == null || isNaN(p)) return "–";
-    if (p >= 1000) return `${(p / 100).toFixed(p >= 10000 ? 0 : 1)}×`;
+    if (p >= 1000) { const x = (p / 100).toFixed(p >= 10000 ? 0 : 1); return `${ES ? x.replace(".", ",") : x}×`; }
     return `${Math.round(p)}%`;
   }
   function pctSub(p) {
-    if (p == null || isNaN(p)) return "no normal to compare with";
-    return p >= 1000 ? "the median (normal)" : "of the median (normal)";
+    const t = typeof I18N !== "undefined" ? I18N.t : (x) => x;
+    if (p == null || isNaN(p)) return t("no normal to compare with");
+    return p >= 1000 ? t("the median (normal)") : t("of the median (normal)");
   }
   const monthLabel = (ym) => { // "2011-04" -> "Apr 2011"
     if (!ym) return "–";
     const [y, m] = ym.split("-").map(Number);
-    return `${MON[m - 1]} ${y}`;
+    return ES ? `${MON[m - 1]} ${y}` : `${MON[m - 1]} ${y}`;
   };
   const mmdd = (s) => { // "03-15" -> "Mar 15"
     if (!s) return "";
     const [m, d] = s.split("-").map(Number);
-    return `${MON[m - 1]} ${d}`;
+    return ES ? `${d} ${MON[m - 1]}` : `${MON[m - 1]} ${d}`;
   };
   const date = (iso) => { // "2011-04-01" -> "Apr 1, 2011"
     const [y, m, d] = iso.split("-").map(Number);
-    return `${MON[m - 1]} ${d}, ${y}`;
+    return ES ? `${d} ${MON[m - 1]} ${y}` : `${MON[m - 1]} ${d}, ${y}`;
   };
   const iso = (d) => d.toISOString().slice(0, 10);
   // ISO weeks (Monday to Sunday; week 1 holds January 4)

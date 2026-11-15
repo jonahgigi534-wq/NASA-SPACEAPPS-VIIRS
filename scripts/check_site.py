@@ -243,6 +243,17 @@ with sync_playwright() as p:
     page.wait_for_function("document.getElementById('kf-total').textContent !== '–'", timeout=20000)
     ok("mock mode (?mock=1)", page.is_visible("#mock-banner"))
 
+    # Spanish interface (beta): page text, numbers and the server's sentences all switch
+    page.goto(BASE + "/?lang=es")
+    page.wait_for_function("document.getElementById('kf-total').textContent !== '–'", timeout=30000)
+    wait_idle(page)
+    es_label = page.inner_text("#kf-total-label")
+    es_sum = page.inner_text("#summary-text")
+    ok("Spanish interface (?lang=es)",
+       page.evaluate("document.documentElement.lang") == "es" and "focos" in es_label.lower()
+       and "." in page.inner_text("#kf-total") and "Esta zona" in es_sum,
+       f"{es_label} / {es_sum[:60]}")
+
     phone = browser.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=2, is_mobile=True, has_touch=True)
     pp = phone.new_page()
     pp.goto(BASE + "/")

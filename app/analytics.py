@@ -427,7 +427,7 @@ def high_risk_weeks(wclim, share=HIGH_RISK_SHARE):
 MIN_TREND_YEARS = 8
 
 
-def trend(mt):
+def trend(mt, lang="en"):
     """Long-term trend of complete-year totals: Theil-Sen slope (robust to single extreme years)
     and a Mann-Kendall test (Kendall's tau against the year). Returns None with < 8 years."""
     from scipy import stats
@@ -451,6 +451,8 @@ def trend(mt):
     else:
         direction = "none"
         text = f"No clear trend in yearly totals over {span} (Mann-Kendall p = {p:.2f})."
+    if lang == "es":
+        text = es_trend_text(direction, pct, span, p)
     return {"years": [int(years[0]), int(years[-1])], "slope_per_year": round(slope, 1),
             "pct_per_decade": round(pct, 1), "p_value": round(p, 4), "direction": direction,
             "text": text}
@@ -672,7 +674,7 @@ def calendar_cells(s, granularity, start, end, baseline, source_of, provisional_
     return rows
 
 
-def patterns(s, baseline, provisional_after):
+def patterns(s, baseline, provisional_after, lang="en"):
     """Body of /api/patterns."""
     mt = monthly_table(s)
     mclim = monthly_climatology(mt, baseline)
@@ -690,12 +692,12 @@ def patterns(s, baseline, provisional_after):
         "high_risk_months": high_risk_months(mclim),
         "high_risk_weeks": high_risk_weeks(weekly_climatology(weekly_table(s), baseline)),
         "chance_unusual_month": chance_unusual_month(mt, mclim, baseline),
-        "trend": trend(mt),
+        "trend": trend(mt, lang),
     }
 
 
-def summary(s, start, end, baseline, provisional_after, unit_word, area_info):
-    """Body of /api/summary. area_info: area_km2, cells, region, outside_note."""
+def summary(s, start, end, baseline, provisional_after, unit_word, area_info, lang="en"):
+    """Body of /api/summary. area_info: area_km2, cells, region, outside_note, outside_share."""
     start, end = pd.Timestamp(start), pd.Timestamp(end)
     w = s.loc[start:end]
     total = float(np.nansum(w.to_numpy()))
@@ -733,6 +735,11 @@ def summary(s, start, end, baseline, provisional_after, unit_word, area_info):
                      "(near-real-time).")
     if area_info.get("outside_note"):
         parts.append(area_info["outside_note"])
+    text = " ".join(parts)
+    if lang == "es":
+        text = es_summary_text(total, median, pct, _isnan(value), start, end, fs, busiest_year,
+                               end.year == start.year, missing_days, provisional_days,
+                               provisional_after, unit_word, area_info.get("outside_share"))
 
     return {
         "area_km2": rint(area_info["area_km2"]), "cells": area_info["cells"],
@@ -743,12 +750,12 @@ def summary(s, start, end, baseline, provisional_after, unit_word, area_info):
             "busiest_month": busiest_month, "busiest_year": busiest_year,
             "fire_season": ({k: fs[k] for k in ("start", "peak", "end")} if fs else None),
         },
-        "summary_text": " ".join(parts),
+        "summary_text": text,
         "provisional_days": provisional_days, "missing_days": missing_days,
     }
 
 
-def current(s, as_of, baseline, provisional_after, unit_word):
+def current(s, as_of, baseline, provisional_after, unit_word, lang="en"):
     """Body of /api/current: this month so far vs the same days in other years."""
     as_of = pd.Timestamp(as_of)
     ms = as_of.replace(day=1)
@@ -785,6 +792,8 @@ def current(s, as_of, baseline, provisional_after, unit_word):
     n_missing = int(w.isna().sum())
     if n_missing:
         text += f" {n_missing} day{'s' if n_missing != 1 else ''} had no satellite data."
+    if lang == "es":
+        text = es_current_text(value_so_far, this, median, pct, rank, since, as_of, n_missing, unit_word)
     return {
         "month": ms.strftime("%Y-%m"), "days_so_far": int(as_of.day),
         "value_so_far": r1(value_so_far), "median_same_days": r1(median),
@@ -865,7 +874,7 @@ def fire_clusters(rec, min_size=MIN_CLUSTER):
     return agg[cols].reset_index(drop=True)
 
 
-def clusters_response(cl, data_end, provisional_after, unit_word, top=10):
+def clusters_response(cl, data_end, provisional_after, unit_word, top=10, lang="en"):
     """Body of /api/fires: the latest clusters ranked against all clusters, and the largest."""
     def row(r, rank, of):
         return {"start": r.start.strftime("%Y-%m-%d"), "end": r.end.strftime("%Y-%m-%d"),
@@ -880,7 +889,8 @@ def clusters_response(cl, data_end, provisional_after, unit_word, top=10):
                                               f"on the same day or within {LINK_DAYS} days"),
            "min_hotspots": MIN_CLUSTER, "latest": [], "largest": [], "all": [], "summary_text": None}
     if n == 0:
-        out["summary_text"] = "No fire clusters here in the record."
+        out["summary_text"] = ("No hay grupos de incendios aquí en el registro." if lang == "es"
+                               else "No fire clusters here in the record.")
         return out
     cl = cl.assign(rank=cl["hotspots"].rank(ascending=False, method="min").astype(int))
     latest = cl.sort_values(["end", "hotspots"], ascending=[False, False]).head(5)
@@ -899,4 +909,129 @@ def clusters_response(cl, data_end, provisional_after, unit_word, top=10):
     out["summary_text"] = (f"The most recent fire cluster here ({when}, {int(L.days)} day"
                            f"{'s' if L.days != 1 else ''}, {count_words(L.hotspots, unit_word)}) is "
                            f"{rank_words} of {n:,} clusters since {since}; {status}.")
+    if lang == "es":
+        out["summary_text"] = es_clusters_text(L, n, since, ago, unit_word)
     return out
+
+
+# =============================================================================================
+# 9. Spanish sentences (beta): the same numbers, worded in Spanish (?lang=es on the website)
+# =============================================================================================
+
+MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre",
+         "octubre", "noviembre", "diciembre"]
+MES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+UNIDADES = {"hotspots": "focos de calor", "MODIS hotspots": "focos MODIS", "VIIRS hotspots": "focos VIIRS",
+            "MW of fire power": "MW de potencia de fuego"}
+
+
+def es_num(x):
+    return f"{int(round(x)):,}".replace(",", ".")          # 22.578 (Spanish thousands separator)
+
+
+def es_count(x, unit_word):
+    u = UNIDADES.get(unit_word, unit_word)
+    if int(round(x)) == 1 and u.startswith("focos"):
+        u = u.replace("focos", "foco", 1)
+    return f"{es_num(x)} {u}"
+
+
+def es_date(d):
+    d = pd.Timestamp(d)
+    return f"{d.day} {MES[d.month - 1]} {d.year}"
+
+
+def es_range(start, end):
+    start, end = pd.Timestamp(start), pd.Timestamp(end)
+    if start.month == 1 and start.day == 1 and end.month == 12 and end.day == 31:
+        return f"en {start.year}" if start.year == end.year else f"en {start.year}-{end.year}"
+    if start.day == 1 and end == start + pd.offsets.MonthEnd(0):
+        return f"en {MESES[start.month - 1]} de {start.year}"
+    return f"entre el {es_date(start)} y el {es_date(end)}"
+
+
+def es_season(fs):
+    if not fs:
+        return ""
+    sm, em = int(fs["start"][:2]), int(fs["end"][:2])
+    pm, pd_ = int(fs["peak"][:2]), int(fs["peak"][3:])
+    part = "principios" if pd_ <= 10 else ("mediados" if pd_ <= 20 else "finales")
+    runs = (f"se concentra en {MESES[sm - 1]}" if sm == em
+            else f"suele ir de {MESES[sm - 1]} a {MESES[em - 1]}")
+    return f"La temporada de incendios aquí {runs}, con un pico a {part} de {MESES[pm - 1]}."
+
+
+ES_NO_DATA = ("No hay datos satelitales para la mayor parte de este período, así que no se puede "
+              "comparar con lo normal.")
+
+
+def es_summary_text(total, median, pct, no_data, start, end, fs, busiest_year, single_year,
+                    missing_days, provisional_days, provisional_after, unit_word, outside_share):
+    when = es_range(start, end)
+    u = UNIDADES.get(unit_word, unit_word)
+    if no_data or (pct is None and median is not None and not _isnan(median) and median > 0):
+        first = ES_NO_DATA
+    elif median is None or _isnan(median) or median <= 0:
+        first = (f"Normalmente casi no hay {u} aquí en esta época del año; esta zona tuvo "
+                 f"{es_count(total, unit_word)} {when}.")
+    else:
+        vs = f"({es_count(total, unit_word)} frente a un valor típico de {es_num(median)})"
+        if pct >= 150:
+            times = f"{pct / 100:.1f}".replace(".", ",")          # 11,6 (Spanish decimal comma)
+            first = f"Esta zona tuvo {times} veces su actividad de fuego normal {when} {vs}."
+        elif pct <= 67:
+            first = f"La actividad de fuego aquí estuvo por debajo de lo normal {when}: {round(pct)} % de la mediana {vs}."
+        else:
+            first = f"La actividad de fuego aquí estuvo cerca de lo normal {when}: {round(pct)} % de la mediana {vs}."
+    parts = [first]
+    if fs:
+        parts.append(es_season(fs))
+    if busiest_year and single_year:
+        parts.append(f"El año con más actividad registrado aquí fue {busiest_year}.")
+    if missing_days:
+        parts.append(f"{missing_days} día{'s' if missing_days != 1 else ''} sin datos satelitales "
+                     f"{'se dejan' if missing_days != 1 else 'se deja'} fuera, no se cuenta{'n' if missing_days != 1 else ''} como cero.")
+    if provisional_days:
+        parts.append(f"Los datos posteriores al {es_date(provisional_after)} son provisionales (casi en tiempo real).")
+    if outside_share is not None:
+        parts.append(f"Solo el {round(100 * outside_share)} % de esta zona está dentro de nuestras regiones "
+                     "de datos; el resto no se cuenta.")
+    return " ".join(parts)
+
+
+def es_current_text(value_so_far, this, median, pct, rank, since, as_of, n_missing, unit_word):
+    as_of = pd.Timestamp(as_of)
+    mes = MESES[as_of.month - 1]
+    days = f"1–{as_of.day} {MES[as_of.month - 1]}"
+    if _isnan(this):
+        text = f"No hay datos satelitales para la mayor parte de {mes} hasta ahora ({days}), así que no se puede comparar con lo normal."
+    elif _isnan(median) or median <= 0:
+        text = (f"{es_count(value_so_far, unit_word)} en lo que va de {mes} ({days}); "
+                "normalmente casi no hay en estos días.")
+    else:
+        text = (f"{es_count(value_so_far, unit_word)} en lo que va del mes ({days}) frente a un valor típico "
+                f"de {es_num(median)} ({round(pct)} % de la mediana)")
+        if rank:
+            text += (", el más alto" if rank == 1 else f", el {es_num(rank)}.º más alto") + f" desde {since}."
+        else:
+            text += "."
+    if n_missing:
+        text += f" {n_missing} día{'s' if n_missing != 1 else ''} sin datos satelitales."
+    return text
+
+
+def es_clusters_text(L, n, since, ago, unit_word):
+    when = f"del {es_date(L.start)} al {es_date(L.end)}" if L.days > 1 else es_date(L.start)
+    rank = int(L["rank"])
+    rank_words = "el más grande" if rank == 1 else f"el {es_num(rank)}.º más grande"
+    status = ("sigue activo en los datos más recientes" if ago <= 2
+              else f"visto por última vez {ago} días antes de los datos más recientes")
+    return (f"El grupo de incendios más reciente aquí ({when}, {int(L.days)} día{'s' if L.days != 1 else ''}, "
+            f"{es_count(L.hotspots, unit_word)}) es {rank_words} de {es_num(n)} grupos desde {since}; {status}.")
+
+
+def es_trend_text(direction, pct, span, p):
+    if direction == "none":
+        return f"Sin una tendencia clara en los totales anuales de {span} (Mann-Kendall p = {p:.2f})."
+    word = "En aumento" if direction == "rising" else "En descenso"
+    return f"{word}: alrededor de {pct:+.0f} % por década en {span} (Mann-Kendall p = {p:.3f})."

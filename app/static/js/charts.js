@@ -1,5 +1,7 @@
 // charts.js: Chart.js charts (patterns, now vs history, long-term record) + PNG export.
 const CHARTS = (() => {
+  const ES = typeof I18N !== "undefined" && I18N.es;
+  const L = (en, es) => (ES ? es : en);
   const C = {
     harmonized: "#1d5fa8",   // blue
     viirs: "#e8590c",        // orange (blue/orange is safe for common color blindness)
@@ -73,8 +75,8 @@ const CHARTS = (() => {
     const ds = ch.data.datasets.filter((d) => d.data.some((v) => v != null));
     const title = (ch.options.plugins.title && ch.options.plugins.title.text) || canvas.getAttribute("aria-label");
     const cell = (v) => (v == null ? "no data" : Math.round(v).toLocaleString("en-US"));
-    t.innerHTML = `<caption>${esc(title)} (data table)</caption><thead><tr><th scope="col">Period</th>` +
-      ds.map((d) => `<th scope="col">${esc(d.label || "value")}</th>`).join("") + "</tr></thead><tbody>" +
+    t.innerHTML = `<caption>${esc(title)} ${L("(data table)", "(tabla de datos)")}</caption><thead><tr><th scope="col">${L("Period", "Período")}</th>` +
+      ds.map((d) => `<th scope="col">${esc(d.label || L("value", "valor"))}</th>`).join("") + "</tr></thead><tbody>" +
       ch.data.labels.map((l, i) => `<tr><th scope="row">${esc(l)}</th>${ds.map((d) => `<td>${cell(d.data[i])}</td>`).join("")}</tr>`).join("") +
       "</tbody>";
   }
@@ -94,13 +96,13 @@ const CHARTS = (() => {
     make("chart-months", {
       type: "bar",
       data: { labels: FMT.MON, datasets: [{
-        label: `Typical (median) ${units} per month`, data,
+        label: L(`Typical (median) ${units} per month`, `${units} típicos (mediana) por mes`), data,
         backgroundColor: p.monthly_median.map((m) => hot.has(m.month) ? C.hot : C.bar), borderRadius: 3 }] },
       options: {
         plugins: {
-          title: titlePlugin(`Typical ${units} per month (median of the normal years)`),
+          title: titlePlugin(L(`Typical ${units} per month (median of the normal years)`, `${units} típicos por mes (mediana de los años normales)`)),
           legend: { display: false },
-          band: { ranges: seasonRanges(p.fire_season), label: p.fire_season ? "fire season" : "" },
+          band: { ranges: seasonRanges(p.fire_season), label: p.fire_season ? L("fire season", "temporada de incendios") : "" },
           tooltip: { callbacks: { label: (c) => {
             const m = p.monthly_median[c.dataIndex];
             return [`median ${FMT.int(m.median)}, mean ${FMT.int(m.mean)}`, hot.has(m.month) ? "high-risk month" : ""].filter(Boolean);
@@ -117,10 +119,10 @@ const CHARTS = (() => {
     make("chart-years", {
       type: "bar",
       data: { labels: rows.map((r) => r.year), datasets: [{
-        label: `${units} per year`, data: rows.map((r) => r.total),
+        label: L(`${units} per year`, `${units} por año`), data: rows.map((r) => r.total),
         backgroundColor: rows.map((r) => top.has(r.year) ? C.hot : C.bar), borderRadius: 2 }] },
       options: {
-        plugins: { title: titlePlugin(`${units} per year (busiest 3 highlighted)`), legend: { display: false },
+        plugins: { title: titlePlugin(L(`${units} per year (busiest 3 highlighted)`, `${units} por año (los 3 más activos resaltados)`)), legend: { display: false },
           tooltip: { callbacks: { label: (c) => {
             const r = rows[c.dataIndex]; return `${FMT.int(r.total)} ${units} · rank ${r.rank} of ${rows.length}`;
           } } } },
@@ -133,11 +135,11 @@ const CHARTS = (() => {
   function now(cur, units) {
     make("chart-now", {
       type: "bar",
-      data: { labels: ["This month so far", "Typical for these days"], datasets: [{
+      data: { labels: ES ? ["Este mes hasta ahora", "Lo típico para estos días"] : ["This month so far", "Typical for these days"], datasets: [{
         data: [cur.value_so_far, cur.median_same_days], backgroundColor: [C.hot, C.bar], borderRadius: 4 }] },
       options: {
         indexAxis: "y",
-        plugins: { title: titlePlugin(`${FMT.monthLabel(cur.month)}, days 1–${cur.days_so_far}: ${units}`), legend: { display: false },
+        plugins: { title: titlePlugin(`${FMT.monthLabel(cur.month)}, ${L("days", "días")} 1–${cur.days_so_far}: ${units}`), legend: { display: false },
           tooltip: { callbacks: { label: (c) => `${FMT.int(c.raw)} ${units}` } } },
         scales: { x: { beginAtZero: true, title: axisTitle(units), grid: { color: C.grid } }, y: { grid: { display: false } } },
       },
@@ -154,18 +156,18 @@ const CHARTS = (() => {
     make("chart-longterm", {
       type: "line",
       data: { labels, datasets: [
-        ds("viirs_raw", "Raw VIIRS (not harmonized)", C.viirs),
+        ds("viirs_raw", L("Raw VIIRS (not harmonized)", "VIIRS sin ajustar (no armonizado)"), C.viirs),
         ds("modis_only", "MODIS only (reference)", C.modis, [3, 3]),
-        ds("harmonized", "Harmonized (MODIS scale)", C.harmonized),
+        ds("harmonized", L("Harmonized (MODIS scale)", "Armonizado (escala MODIS)"), C.harmonized),
       ].filter((d) => d.data.some((v) => v != null)) },
       options: {
         interaction: { mode: "index", intersect: false },
         plugins: {
-          title: titlePlugin(`${yTitle[0].toUpperCase()}${yTitle.slice(1)}, 2001 → today`),
+          title: titlePlugin(`${yTitle[0].toUpperCase()}${yTitle.slice(1)}, 2001 → ${L("today", "hoy")}`),
           legend: { position: "top", align: "start", labels: { boxWidth: 18 } },
           vlines: { lines: ts.sensor_switches.map((s) => ({ index: idx(s.date), label: s.label })).filter((l) => l.index >= 0) },
           tooltip: { callbacks: { title: (it) => FMT.monthLabel(it[0].label),
-            label: (c) => `${c.dataset.label}: ${c.raw == null ? "no data" : FMT.int(c.raw)}` } },
+            label: (c) => `${c.dataset.label}: ${c.raw == null ? L("no data", "sin datos") : FMT.int(c.raw)}` } },
         },
         scales: {
           x: { ticks: { callback: (v, i) => labels[i].endsWith("-01") && +labels[i].slice(0, 4) % 2 === 1 ? labels[i].slice(0, 4) : "",
@@ -178,24 +180,24 @@ const CHARTS = (() => {
 
   function fires(j, units) {
     const all = j.all.map(([d, h, days]) => ({ x: Date.parse(d), y: Math.max(h, 0.5), d, days }));
-    const L = j.latest[0];
-    const latest = L ? [{ x: Date.parse(L.start), y: L.hotspots, d: L.start, days: L.days }] : [];
+    const last = j.latest[0];
+    const latest = last ? [{ x: Date.parse(last.start), y: last.hotspots, d: last.start, days: last.days }] : [];
     make("chart-fires", {
       type: "scatter",
       data: { datasets: [
-        { label: "Most recent fire cluster", data: latest, backgroundColor: C.hot, borderColor: "#7c2d12", borderWidth: 1.5, pointRadius: 7, order: 0 },
-        { label: "Every earlier fire cluster", data: all, backgroundColor: "rgba(29, 95, 168, 0.35)", pointRadius: 2.5, order: 1 },
+        { label: L("Most recent fire cluster", "Grupo de incendios más reciente"), data: latest, backgroundColor: C.hot, borderColor: "#7c2d12", borderWidth: 1.5, pointRadius: 7, order: 0 },
+        { label: L("Every earlier fire cluster", "Todos los grupos anteriores"), data: all, backgroundColor: "rgba(29, 95, 168, 0.35)", pointRadius: 2.5, order: 1 },
       ] },
       options: {
         plugins: {
-          title: titlePlugin(`Fire clusters by start date and size (${units}, log scale)`),
+          title: titlePlugin(L(`Fire clusters by start date and size (${units}, log scale)`, `Grupos de incendios por fecha de inicio y tamaño (${units}, escala log)`)),
           legend: { position: "top", align: "start", labels: { boxWidth: 12 } },
-          tooltip: { callbacks: { label: (c) => `${FMT.date(c.raw.d)}: ${FMT.int(c.raw.y)} ${units}, ${c.raw.days} day${c.raw.days === 1 ? "" : "s"}` } },
+          tooltip: { callbacks: { label: (c) => `${FMT.date(c.raw.d)}: ${FMT.int(c.raw.y)} ${units}, ${c.raw.days} ${ES ? (c.raw.days === 1 ? "día" : "días") : (c.raw.days === 1 ? "day" : "days")}` } },
         },
         scales: {
           x: { type: "linear", min: Date.UTC(2001, 0, 1), max: Date.UTC(new Date().getUTCFullYear() + 1, 0, 1),
                ticks: { callback: (v) => new Date(v).getUTCFullYear(), maxRotation: 0, autoSkip: true }, grid: { display: false } },
-          y: { type: "logarithmic", title: axisTitle(`${units} per cluster`), grid: { color: C.grid },
+          y: { type: "logarithmic", title: axisTitle(L(`${units} per cluster`, `${units} por grupo`)), grid: { color: C.grid },
                ticks: { callback: (v) => ([1, 10, 100, 1000, 10000, 100000].includes(v) ? FMT.int(v) : "") } },
         },
       },

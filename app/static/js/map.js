@@ -1,6 +1,7 @@
 // map.js: Leaflet map with our data regions outlined and draw tools (rectangle, polygon, circle).
 // Whatever the user draws becomes an API "area" (docs/CONTRACTS.md section 4).
 const MAP = (() => {
+  const ES = typeof I18N !== "undefined" && I18N.es;
   let map, drawn, onArea;
 
   function init(regions, onAreaChosen) {
@@ -115,7 +116,7 @@ const MAP = (() => {
       const color = view === "anomaly" ? FMT.anomalyColor(c.value, c.median) : scale(c.value);
       L.rectangle([[c.lat - half, c.lon - half], [c.lat + half, c.lon + half]],
         { renderer, stroke: false, fillColor: color, fillOpacity: 0.8 })
-        .bindTooltip(`<b>${FMT.int(c.value)}</b> ${units}<br>normal for these dates: ${FMT.int(c.median)}`, { sticky: true })
+        .bindTooltip(`<b>${FMT.int(c.value)}</b> ${units}<br>${ES ? "normal para estas fechas" : "normal for these dates"}: ${FMT.int(c.median)}`, { sticky: true })
         .addTo(cellLayer);
     });
     const stops = d3.range(0, 1.0001, 0.1);
@@ -125,10 +126,11 @@ const MAP = (() => {
     box.style.display = "";
     box.innerHTML = `<div>${caption}</div><div class="bar" style="background:linear-gradient(90deg,${grad})"></div>` +
       (view === "anomaly"
-        ? `<div class="ends"><span>10× less</span><span>normal</span><span>10× more</span></div>`
+        ? (ES ? `<div class="ends"><span>10× menos</span><span>normal</span><span>10× más</span></div>`
+            : `<div class="ends"><span>10× less</span><span>normal</span><span>10× more</span></div>`)
         : `<div class="ends"><span>${FMT.int(lo)}</span><span>${FMT.int(max)} ${units}</span></div>`) +
-      `<div class="ends"><span>${deg === data.cell_deg ? "0.1°" : deg + "°"} squares${deg > data.cell_deg ? " (zoom in for 0.1°)" : ""}</span></div>` +
-      (data.truncated ? "<div>busiest 20,000 squares shown</div>" : "");
+      `<div class="ends"><span>${deg === data.cell_deg ? "0.1°" : deg + "°"} ${ES ? "cuadros" : "squares"}${deg > data.cell_deg ? (ES ? " (acerque para 0,1°)" : " (zoom in for 0.1°)") : ""}</span></div>` +
+      (data.truncated ? (ES ? "<div>se muestran los 20.000 cuadros con más fuego</div>" : "<div>busiest 20,000 squares shown</div>") : "");
   }
 
   let mark = null;

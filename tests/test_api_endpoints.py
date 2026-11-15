@@ -272,3 +272,19 @@ def test_judges_page(client):
     r = client.get("/judges")
     assert r.status_code == 200 and "Two-minute tour" in r.text
     assert r.text.count('href="/#area=') >= 7
+
+
+def test_spanish_sentences(client):
+    en = client.post("/api/summary", json=TEXAS_2011).json()
+    es = client.post("/api/summary", json={**TEXAS_2011, "lang": "es"}).json()
+    assert es["key_figures"] == en["key_figures"]                     # same numbers
+    assert es["summary_text"] != en["summary_text"]
+    assert "veces su actividad de fuego normal" in es["summary_text"] or "normal" in es["summary_text"]
+    cur = client.post("/api/current", json={**TEXAS_2011, "lang": "es"}).json()
+    assert "en lo que va" in cur["summary_text"] or "No hay datos" in cur["summary_text"]
+    pat = client.post("/api/patterns", json={**TEXAS_2011, "lang": "es"}).json()
+    assert pat["trend"] is None or ("tendencia" in pat["trend"]["text"] or "En " in pat["trend"]["text"])
+    fi = client.post("/api/fires", json={**TEXAS_2011, "lang": "es", "area": {"type": "bbox", "bbox": [-102, 30, -98, 34]}}).json()
+    assert "grupo de incendios" in fi["summary_text"]
+    bad = client.post("/api/summary", json={**TEXAS_2011, "lang": "fr"})
+    assert bad.status_code == 400
