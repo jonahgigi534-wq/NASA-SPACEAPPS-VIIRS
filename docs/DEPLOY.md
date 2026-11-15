@@ -21,6 +21,11 @@ refreshes the live FIRMS feed in the background once an hour.
    ```
    This creates the Space (public, Docker), uploads only the files the app needs, and sets
    `APP_DATA_URL` (variable) and `FIRMS_MAP_KEY` (secret, read from `.env`).
+   `APP_DATA_URL` is pinned to the dataset's current commit, so the live numbers can't change
+   if someone updates the dataset later (`--no-pin` to follow the latest version instead).
+   **Recommended:** add `--with-data data/app` to bundle the 4 data files (about 530 MB) into the
+   image. A free Space sleeps when nobody visits and wakes with an empty disk; with the data
+   bundled it answers in seconds instead of re-downloading for about 2 minutes.
 4. Wait for the build (a few minutes), then about 2 minutes for the data download. Check:
    - `https://yourname-firebridge.hf.space/api/status`: download finished, live refresh ok
    - `https://yourname-firebridge.hf.space`: the site, in an incognito window and on a phone

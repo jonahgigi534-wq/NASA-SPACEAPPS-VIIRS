@@ -599,7 +599,12 @@ def regions():
 def status():
     """Deploy status: data download progress and the last live-feed refresh (not in the
     contract; for checking the deployed site)."""
-    return clean({"download": dict(_download), "live_refresh": {
+    url = os.environ.get("APP_DATA_URL", "")
+    rev = url.split("/resolve/", 1)[1].split("/", 1)[0] if "/resolve/" in url else None
+    return clean({"download": dict(_download),
+                  "data": {"source": data_base_url(url) if url else "local files",
+                           "dataset_revision": rev},
+                  "live_refresh": {
         **_live, "enabled": bool(_firms_key()) and os.environ.get("LIVE_REFRESH", "1") != "0",
         "every_seconds": LIVE_REFRESH_SECONDS}})
 

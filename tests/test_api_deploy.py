@@ -215,3 +215,11 @@ def test_no_refresh_without_key_or_when_disabled(live_ready_dir, monkeypatch):
 ])
 def test_app_data_url_folder_or_file(given):
     assert main.data_base_url(given) == BASE
+
+
+def test_status_reports_the_pinned_dataset_revision(source_dir, monkeypatch):
+    monkeypatch.setenv("APP_DATA_DIR", str(source_dir))
+    monkeypatch.setenv("APP_DATA_URL", "https://huggingface.co/datasets/team/firebridge-data/resolve/3e4b6b22/")
+    monkeypatch.delenv("FIRMS_MAP_KEY", raising=False)
+    s = TestClient(main.app).get("/api/status").json()
+    assert s["data"]["dataset_revision"] == "3e4b6b22"

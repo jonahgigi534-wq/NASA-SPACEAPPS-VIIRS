@@ -36,6 +36,7 @@ MAX_MISSING_SHARE = 0.2    # a month/window with more than 20% missing days is r
 FIRE_SEASON_SHARE = 0.8    # fire season = shortest stretch of the year holding 80% of activity
 HIGH_RISK_SHARE = 0.2      # high-risk months = the top 20% of months (3 of 12)
 UNUSUAL_Z = 1.0            # "unusual month" = more than 1 standard deviation above normal
+MAX_POLYGON_POINTS = 500   # keeps one huge drawn shape from tying up the free server
 
 MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August",
           "September", "October", "November", "December"]
@@ -119,6 +120,9 @@ def parse_area(area):
                             "[[[lon, lat], [lon, lat], ...]].")
         if geom.is_empty:
             raise AreaError("That polygon is empty.")
+        if shapely.get_num_coordinates(geom) > MAX_POLYGON_POINTS:
+            raise AreaError(f"That polygon has too many corners (the limit is "
+                            f"{MAX_POLYGON_POINTS}). Simplify it or draw a box instead.")
         minx, miny, maxx, maxy = geom.bounds
         _check_lonlat(minx, miny)
         _check_lonlat(maxx, maxy)

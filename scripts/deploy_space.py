@@ -58,12 +58,29 @@ Code, methods and validation: {GITHUB}
 """
 
 
+def pin_dataset(api, data_url):
+    """.../datasets/<owner>/<name>/resolve/main/ -> .../resolve/<today's commit>/, so the numbers
+    on the live site can't change under the judges if someone updates the dataset."""
+    try:
+        repo = data_url.split("/datasets/", 1)[1].split("/resolve/", 1)[0]
+        sha = api.dataset_info(repo).sha
+    except Exception as ex:
+        print(f"Couldn't pin the dataset version ({ex}); using {data_url} as given.")
+        return data_url
+    return f"https://huggingface.co/datasets/{repo}/resolve/{sha}/"
+
+
 def main():
     ap = argparse.ArgumentParser(description="Deploy FireBridge to a Hugging Face Space.")
     ap.add_argument("--space", required=True, help="Space id, e.g. yourname/firebridge")
     ap.add_argument("--data-url", default=DEFAULT_DATA_URL,
                     help="APP_DATA_URL: dataset folder URL ending in /resolve/main/")
     ap.add_argument("--no-key", action="store_true", help="don't set FIRMS_MAP_KEY")
+    ap.add_argument("--no-pin", action="store_true",
+                    help="use the dataset's latest version instead of pinning today's commit")
+    ap.add_argument("--with-data", metavar="DIR",
+                    help="also upload the 4 data files from DIR into the image (about 530 MB), "
+                         "so a sleeping Space wakes without re-downloading them")
     args = ap.parse_args()
 
     try:
@@ -85,7 +102,20 @@ def main():
                     path_or_fileobj=SPACE_README.encode("utf-8"),
                     commit_message="Space settings")
 
-    api.add_space_variable(args.space, "APP_DATA_URL", args.data_url)
+    if args.with_data:
+        data_dir = Path(args.with_data)
+        need = ["cells_daily.parquet", "missing_days.parquet", "hotspots.parquet", "coverage.json"]
+        absent = [f for f in need if not (data_dir / f).exists()]
+        if absent:
+            sys.exit(f"--with-data: {data_dir} is missing {', '.join(absent)}")
+        print(f"Uploading the data files from {data_dir} into the image (large files use LFS) ...")
+        api.upload_folder(repo_id=args.space, repo_type="space", folder_path=str(data_dir),
+                          path_in_repo="appdata", allow_patterns=need,
+                          commit_message="Bundle app data")
+
+    data_url = args.data_url if args.no_pin else pin_dataset(api, args.data_url)
+    api.add_space_variable(args.space, "APP_DATA_URL", data_url)
+    print(f"APP_DATA_URL = {data_url}")
     if not args.no_key:
         key = os.environ.get("FIRMS_MAP_KEY")
         if not key:

@@ -237,3 +237,12 @@ def test_bad_areas_give_plain_errors(bad):
 def test_area_km2_of_one_degree_square_at_equator():
     a = an.parse_area({"type": "bbox", "bbox": [0, 0, 1, 1]})
     assert an.area_km2(a.geom) == pytest.approx(12364, rel=0.01)
+
+
+def test_polygon_with_too_many_corners_is_refused():
+    import numpy as np
+    ang = np.linspace(0, 2 * np.pi, an.MAX_POLYGON_POINTS + 50)
+    ring = [[float(-98 + np.cos(a)), float(31 + np.sin(a))] for a in ang]
+    ring.append(ring[0])
+    with pytest.raises(an.AreaError, match="too many corners"):
+        an.parse_area({"type": "polygon", "coordinates": [ring]})
