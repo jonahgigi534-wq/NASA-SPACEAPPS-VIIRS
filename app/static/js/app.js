@@ -3,7 +3,7 @@
   const $ = (id) => document.getElementById(id);
   const state = {
     area: null, areaLabel: "", start: null, end: null, baseline: [2003, 2022],
-    mode: "harmonized", calview: "counts", dataStart: "2001-01-01", dataEnd: null,
+    mode: "harmonized", calview: "counts", tab: "calendar", dataStart: "2001-01-01", dataEnd: null,
     calendarCells: [], presetIndex: null,
   };
   const UNITS = { harmonized: "hotspots", modis_only: "MODIS hotspots", viirs_raw: "VIIRS hotspots" };
@@ -12,6 +12,7 @@
     modis_only: "MODIS only: the original Terra + Aqua detections (1 km pixels). Consistent, but MODIS is ending in 2027.",
     viirs_raw: "Raw VIIRS: 375 m detections as reported, from 2012. Not comparable with MODIS years: it sees far more hotspots.",
   };
+  const TABS = ["calendar", "patterns", "now"];
 
   // ---------------------------------------------------------------- helpers
   let pending = 0;
@@ -24,6 +25,10 @@
     b.textContent = msg || "";
     b.hidden = !msg;
   }
+  function failed(e) {                         // a waking server is not an error: show progress
+    if (e instanceof API.ApiError && e.waking) showWaking();
+    else showError(e.message);
+  }
   function body(extra = {}) {
     return { area: state.area, start: state.start, end: state.end, baseline: state.baseline,
              mode: state.mode, metric: "count", ...extra };
@@ -31,12 +36,78 @@
   function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
   const units = () => UNITS[state.mode];
 
+  // ---------------------------------------------------------------- shareable links
+  // The whole view lives in the address (#area=…&start=…), so a link reopens exactly this view.
+  function areaToText(a) {
+    if (a.type === "bbox") return `bbox:${a.bbox.join(",")}`;
+    if (a.type === "point") return `point:${a.lat},${a.lon},${a.radius_km}`;
+    return "poly:" + a.coordinates[0].map(([x, y]) => `${x} ${y}`).join(",");
+  }
+  function textToArea(t) {
+    const [kind, rest] = [t.slice(0, t.indexOf(":")), t.slice(t.indexOf(":") + 1)];
+    const nums = (s) => s.split(",").map(Number);
+    if (kind === "bbox") { const b = nums(rest); return b.length === 4 && b.every(isFinite) ? { type: "bbox", bbox: b } : null; }
+    if (kind === "point") { const [lat, lon, r] = nums(rest); return [lat, lon, r].every(isFinite) ? { type: "point", lat, lon, radius_km: r } : null; }
+    if (kind === "poly") {
+      const ring = rest.split(",").map((p) => p.trim().split(/\s+/).map(Number));
+      return ring.length >= 4 && ring.every((p) => p.length === 2 && p.every(isFinite)) ? { type: "polygon", coordinates: [ring] } : null;
+    }
+    return null;
+  }
+  function writeHash() {
+    if (!state.area) return;
+    const p = new URLSearchParams({
+      area: areaToText(state.area), label: state.areaLabel, start: state.start || "", end: state.end || "",
+      base: state.baseline.join("-"), mode: state.mode, tab: state.tab, cal: state.calview,
+    });
+    history.replaceState(null, "", `${location.pathname}${location.search}#${p}`);
+  }
+  function readHash() {
+    if (location.hash.length < 2) return null;
+    const p = new URLSearchParams(location.hash.slice(1));
+    const area = p.get("area") && textToArea(p.get("area"));
+    if (!area) return null;
+    const iso = /^\d{4}-\d{2}-\d{2}$/;
+    const base = (p.get("base") || "").split("-").map(Number);
+    return {
+      area, label: p.get("label") || "Shared area",
+      start: iso.test(p.get("start")) ? p.get("start") : null, end: iso.test(p.get("end")) ? p.get("end") : null,
+      baseline: base.length === 2 && base.every((y) => y > 2000 && y < 2100) ? base : null,
+      mode: UNITS[p.get("mode")] ? p.get("mode") : null,
+      tab: TABS.includes(p.get("tab")) ? p.get("tab") : null,
+      cal: ["counts", "anomaly"].includes(p.get("cal")) ? p.get("cal") : null,
+    };
+  }
+
+  // ---------------------------------------------------------------- a sleeping server waking up
+  let wakingTimer = null;
+  function showWaking() {
+    $("waking").hidden = false;
+    if (wakingTimer) return;
+    const poll = async () => {
+      try {
+        const s = await API.status();
+        const d = s.download;
+        if (!d.active && !d.error) { location.reload(); return; }
+        if (d.error) { $("waking-detail").textContent = `The data couldn't be loaded: ${d.error}`; return; }
+        const pct = d.mb_total ? Math.min(99, Math.round(100 * d.mb_done / d.mb_total)) : 5;
+        $("waking-fill").style.width = `${Math.max(3, pct)}%`;
+        $("waking-detail").textContent = d.file
+          ? `Loading ${d.file}: ${Math.round(d.mb_done)}${d.mb_total ? ` of ${d.mb_total}` : ""} MB`
+          : "Starting…";
+      } catch (_) { $("waking-detail").textContent = "Waiting for the server…"; }
+      wakingTimer = setTimeout(poll, 3000);
+    };
+    poll();
+  }
+
   // ---------------------------------------------------------------- loading
   let runId = 0;
   async function runAll() {
     if (!state.area) return;
     const id = ++runId;
     showError(null);
+    writeHash();
     busy(true);
     try {
       const [summary, cal, patterns, current, ts] = await Promise.all([
@@ -56,7 +127,7 @@
       CHARTS.longterm(ts, state.mode);
       $("daily-card").hidden = true;
     } catch (e) {
-      if (id === runId) showError(e.message);
+      if (id === runId) failed(e);
     } finally {
       busy(false);
     }
@@ -65,11 +136,12 @@
   async function runSummaryOnly() {
     if (!state.area) return;
     showError(null);
+    writeHash();
     busy(true);
     try {
       renderSummary(await API.summary(body()));
       renderCalendar();
-    } catch (e) { showError(e.message); } finally { busy(false); }
+    } catch (e) { failed(e); } finally { busy(false); }
   }
 
   // ---------------------------------------------------------------- render
@@ -118,7 +190,7 @@
       $("daily-title").textContent = title;
       CAL.days($("daily"), r.cells, { id: "daily-svg", title: `${state.areaLabel}: ${title}`, units: units() });
       $("daily-card").scrollIntoView({ behavior: "smooth", block: "nearest" });
-    } catch (e) { showError(e.message); } finally { busy(false); }
+    } catch (e) { failed(e); } finally { busy(false); }
   }
 
   function renderPatterns(p) {
@@ -156,11 +228,33 @@
       ? `#${cur.rank_among_years} of ${cur.of_years} years${cur.provisional ? " · provisional" : ""}` : "";
     $("now-text").textContent = cur.summary_text;
     CHARTS.now(cur, units());
-    const r = await API.calendarDay(body({ start: `${cur.month}-01`,
-      end: `${cur.month}-${String(cur.days_so_far).padStart(2, "0")}`, granularity: "day" }));
+    const [r] = await Promise.all([
+      API.calendarDay(body({ start: `${cur.month}-01`,
+        end: `${cur.month}-${String(cur.days_so_far).padStart(2, "0")}`, granularity: "day" })),
+      renderLastMonth(cur),
+    ]);
     $("now-daily-title").textContent = `${FMT.MONTHS[+cur.month.slice(5) - 1]} ${cur.month.slice(0, 4)}, day by day vs normal`;
     CAL.days($("now-daily"), r.cells, { id: "now-daily-svg", units: units(),
       title: `${state.areaLabel}: ${FMT.monthLabel(cur.month)} day by day` });
+  }
+
+  // In the first week of a month "so far" rests on a few days, so also show the last full month.
+  async function renderLastMonth(cur) {
+    const el = $("now-prev");
+    el.hidden = true;
+    if (cur.days_so_far >= 7 || API.MOCK) return;
+    const [y, m] = cur.month.split("-").map(Number);
+    const asOf = new Date(Date.UTC(y, m - 1, 0)).toISOString().slice(0, 10);   // last day of last month
+    try {
+      const p = await API.current(body({ start: null, end: null, as_of: asOf }));
+      const name = `${FMT.MONTHS[+p.month.slice(5) - 1]} ${p.month.slice(0, 4)}`;
+      let txt = `Last full month, ${name}: ${FMT.int(p.value_so_far)} ${units()}`;
+      if (p.median_same_days != null) txt += ` vs a typical ${FMT.int(p.median_same_days)}`;
+      if (p.pct_of_median != null) txt += ` (${FMT.pct(p.pct_of_median)}${p.pct_of_median >= 1000 ? " normal" : " of normal"})`;
+      if (p.rank_among_years) txt += `, #${p.rank_among_years} of ${p.of_years} years`;
+      el.textContent = txt + ".";
+      el.hidden = false;
+    } catch (_) { /* optional extra: skip quietly */ }
   }
 
   // ---------------------------------------------------------------- choosing an area
@@ -182,6 +276,21 @@
     const area = { type: "bbox", bbox: p.bbox };
     MAP.show(area);
     setArea(area, p.name, i);
+  }
+
+  // ---------------------------------------------------------------- tabs
+  let tabEls = [];
+  function selectTab(name, focus = false) {
+    state.tab = name;
+    tabEls.forEach((t) => {
+      const on = t.id === `tab-${name}`;
+      t.setAttribute("aria-selected", on);
+      t.tabIndex = on ? 0 : -1;
+      $(t.getAttribute("aria-controls")).hidden = !on;
+      if (on && focus) t.focus();
+    });
+    Object.values(CHARTS.charts).forEach((c) => c.resize());
+    writeHash();
   }
 
   // ---------------------------------------------------------------- wiring
@@ -235,27 +344,29 @@
     document.querySelectorAll('input[name="calview"]').forEach((r) => r.addEventListener("change", () => {
       state.calview = r.value;
       renderCalendar();
+      writeHash();
     }));
 
     // tabs (arrow keys move between them, as in the ARIA tabs pattern)
-    const tabs = [...document.querySelectorAll('[role="tab"]')];
-    function select(tab) {
-      tabs.forEach((t) => {
-        const on = t === tab;
-        t.setAttribute("aria-selected", on);
-        t.tabIndex = on ? 0 : -1;
-        $(t.getAttribute("aria-controls")).hidden = !on;
-      });
-      Object.values(CHARTS.charts).forEach((c) => c.resize());
-    }
-    tabs.forEach((t, i) => {
-      t.addEventListener("click", () => select(t));
+    tabEls = [...document.querySelectorAll('[role="tab"]')];
+    tabEls.forEach((t, i) => {
+      const name = t.id.replace("tab-", "");
+      t.addEventListener("click", () => selectTab(name));
       t.addEventListener("keydown", (e) => {
         const d = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
         if (!d) return;
-        const n = tabs[(i + d + tabs.length) % tabs.length];
-        select(n); n.focus();
+        const n = tabEls[(i + d + tabEls.length) % tabEls.length];
+        selectTab(n.id.replace("tab-", ""), true);
       });
+    });
+
+    // shareable link
+    $("copy-link").addEventListener("click", async () => {
+      writeHash();
+      const btn = $("copy-link");
+      try { await navigator.clipboard.writeText(location.href); btn.textContent = "Link copied"; }
+      catch (_) { window.prompt("Copy this link:", location.href); }
+      setTimeout(() => { btn.textContent = "Copy link"; }, 1800);
     });
 
     // downloads
@@ -277,8 +388,19 @@
     const label = btn.textContent;
     btn.textContent = "Preparing…";
     try { await API.downloadCSV(endpoint, body({ granularity: "day" }), name); }
-    catch (e) { showError(e.message); }
+    catch (e) { failed(e); }
     finally { btn.disabled = false; btn.textContent = label; }
+  }
+
+  // apply a view from a shared link (settings first, then the area, which runs the analyses)
+  function applyShared(v) {
+    if (v.baseline) { state.baseline = v.baseline; $("base0").value = v.baseline[0]; $("base1").value = v.baseline[1]; }
+    if (v.mode) { state.mode = v.mode; document.querySelector(`input[name="mode"][value="${v.mode}"]`).checked = true; $("mode-hint").textContent = MODE_HINT[v.mode]; }
+    if (v.cal) { state.calview = v.cal; document.querySelector(`input[name="calview"][value="${v.cal}"]`).checked = true; }
+    if (v.tab) selectTab(v.tab);
+    setDates(v.start || `${state.dataEnd.slice(0, 4)}-01-01`, v.end || state.dataEnd);
+    MAP.show(v.area);
+    setArea(v.area, v.label);
   }
 
   // ---------------------------------------------------------------- start
@@ -304,7 +426,9 @@
         b.addEventListener("click", () => applyPreset(p, i));
         box.appendChild(b);
       });
-      if (presets.length) applyPreset(presets[0], 0);
+      const shared = readHash();
+      if (shared) applyShared(shared);
+      else if (presets.length) applyPreset(presets[0], 0);
       else {
         setDates(`${state.dataEnd.slice(0, 4)}-01-01`, state.dataEnd);
         const area = { type: "bbox", bbox: [-100, 30, -96, 33] };
@@ -312,7 +436,7 @@
         setArea(area, "Central Texas");
       }
     } catch (e) {
-      showError(e.message);
+      failed(e);
     }
   }
   start();

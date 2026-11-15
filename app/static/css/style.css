@@ -185,3 +185,16 @@ input[type=number], input[type=date] { font: inherit; font-size: 14px; color: va
   .methods article { padding: 14px 16px; }
   .methods table { font-size: 12.5px; }
 }
+
+/* ---- title row with "Copy link" ---- */
+.results-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.btn-small { padding: 5px 10px; font-size: 12.5px; }
+.now-prev { margin: 8px 0 0; padding-top: 8px; border-top: 1px dashed var(--line); color: var(--muted); }
+
+/* ---- "waking up" screen (a sleeping server reloading its data) ---- */
+.waking { position: fixed; inset: 0; background: rgba(245, 244, 241, .96); z-index: 2500; display: grid; place-items: center; padding: 20px; }
+.waking-card { max-width: 440px; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px 26px; text-align: center; }
+.waking-card .brand-mark { width: 40px; height: 40px; fill: #f97316; }
+.waking-card h2 { margin: 6px 0 8px; font-size: 20px; }
+.waking-bar { height: 8px; background: #ece9e4; border-radius: 99px; overflow: hidden; margin: 14px 0 8px; }
+.waking-bar span { display: block; height: 100%; width: 3%; background: var(--accent); transition: width .6s ease; }

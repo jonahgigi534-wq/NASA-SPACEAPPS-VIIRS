@@ -32,6 +32,15 @@
 
   <div id="mock-banner" class="banner banner-info" hidden>Sample data mode (<code>?mock=1</code>): numbers are examples, not real.</div>
   <div id="error-banner" class="banner banner-error" role="alert" hidden></div>
+  <div id="waking" class="waking" role="status" aria-live="polite" hidden>
+    <div class="waking-card">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2c2 6 9 9 9 17a9 9 0 0 1-18 0c0-5 3-7 4-11 1 3 3 4 3 4s-1-5 2-10z"/></svg>
+      <h2>FireBridge is waking up</h2>
+      <p>The server was asleep and is loading 25 years of fire data. This takes about two minutes; the page will open by itself.</p>
+      <div class="waking-bar"><span id="waking-fill"></span></div>
+      <p id="waking-detail" class="muted">Starting…</p>
+    </div>
+  </div>
 
   <main class="layout">
     <!-- ================= LEFT: choose area + settings ================= -->
@@ -107,7 +116,10 @@
     <!-- ================= RIGHT: results ================= -->
     <section id="results" class="results" aria-labelledby="results-title" tabindex="-1">
       <div class="results-head">
-        <h2 id="results-title"><span id="area-label">Loading…</span></h2>
+        <div class="results-title-row">
+          <h2 id="results-title"><span id="area-label">Loading…</span></h2>
+          <button type="button" class="btn btn-small" id="copy-link" title="Copy a link to exactly this view">Copy link</button>
+        </div>
         <p id="range-label" class="muted"></p>
       </div>
 
@@ -196,6 +208,7 @@
             <div class="chart-box short"><canvas id="chart-now" role="img" aria-label="This month so far compared with the same days in other years"></canvas></div>
           </div>
           <p id="now-text" class="now-text"></p>
+          <p id="now-prev" class="now-prev" hidden></p>
         </div>
         <div class="card">
           <div class="card-head">

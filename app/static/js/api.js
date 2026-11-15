@@ -6,7 +6,11 @@ const API = (() => {
   // ?api=http://127.0.0.1:8000 lets the page call a backend on another port while developing.
   const BASE = (params.get("api") || "").replace(/\/$/, "");
 
-  class ApiError extends Error {}
+  class ApiError extends Error {
+    constructor(message, status) { super(message); this.status = status; }
+    // 503 + "still downloading" = a freshly woken server loading its data, not a real error
+    get waking() { return this.status === 503 && /still downloading/i.test(this.message); }
+  }
 
   async function getJSON(path) {
     const r = await fetch(BASE + path);
@@ -17,7 +21,7 @@ const API = (() => {
     let body = null;
     try { body = await r.json(); } catch (_) { /* not JSON */ }
     if (!r.ok) {
-      throw new ApiError((body && body.error) || `The server answered ${r.status}. Please try again.`);
+      throw new ApiError((body && body.error) || `The server answered ${r.status}. Please try again.`, r.status);
     }
     return body;
   }
@@ -59,6 +63,7 @@ const API = (() => {
   return {
     MOCK, ApiError, saveBlob, downloadCSV,
     regions: () => MOCK ? fetch("mock/regions.json").then(handle) : getJSON("/api/regions"),
+    status: () => getJSON("/api/status"),
     presets: () => MOCK ? fetch("mock/presets.json").then(handle) : getJSON("/content/presets.json"),
     summary: (b) => post("summary", b),
     calendar: (b) => post("calendar", b),
