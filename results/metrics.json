@@ -186,5 +186,123 @@
   "Land-cover groups (MCD12Q1) used for: amazon, australia, texas.",
   "The harmonized record is on the Terra+Aqua scale: Aqua-equivalent counts are multiplied by the 2003-2018 (Terra+Aqua)/Aqua ratio per region, day/night and calendar month.",
   "Harmonized FRP (mefrp) uses one global FRP ratio and is not separately validated."
- ]
+ ],
+ "leave_one_region_out": {
+  "amazon": {
+   "fit_on": [
+    "australia",
+    "texas"
+   ],
+   "own_region_fit": {
+    "bias_pct": -1.18,
+    "r2": 0.9835,
+    "nrmse": 0.1972,
+    "months": 91
+   },
+   "other_regions_fit": {
+    "bias_pct": -15.73,
+    "r2": 0.9623,
+    "nrmse": 0.298,
+    "months": 91
+   },
+   "other_regions_global_ratio": {
+    "bias_pct": -18.37,
+    "r2": 0.9629,
+    "nrmse": 0.2959,
+    "months": 91
+   }
+  },
+  "australia": {
+   "fit_on": [
+    "amazon",
+    "texas"
+   ],
+   "own_region_fit": {
+    "bias_pct": -1.33,
+    "r2": 0.9823,
+    "nrmse": 0.1169,
+    "months": 91
+   },
+   "other_regions_fit": {
+    "bias_pct": 28.82,
+    "r2": 0.7889,
+    "nrmse": 0.4036,
+    "months": 91
+   },
+   "other_regions_global_ratio": {
+    "bias_pct": 22.59,
+    "r2": 0.8042,
+    "nrmse": 0.3887,
+    "months": 91
+   }
+  },
+  "texas": {
+   "fit_on": [
+    "amazon",
+    "australia"
+   ],
+   "own_region_fit": {
+    "bias_pct": 5.97,
+    "r2": 0.9362,
+    "nrmse": 0.1925,
+    "months": 91
+   },
+   "other_regions_fit": {
+    "bias_pct": -34.83,
+    "r2": 0.6544,
+    "nrmse": 0.4481,
+    "months": 91
+   },
+   "other_regions_global_ratio": {
+    "bias_pct": 1.45,
+    "r2": 0.784,
+    "nrmse": 0.3543,
+    "months": 91
+   }
+  }
+ },
+ "drift_vs_modis": {
+  "amazon": {
+   "2012-2018": {
+    "bias_pct": -4.98,
+    "months": 84
+   },
+   "2019-2021": {
+    "bias_pct": -5.77,
+    "months": 36
+   },
+   "2022_on": {
+    "bias_pct": -5.57,
+    "months": 56
+   }
+  },
+  "australia": {
+   "2012-2018": {
+    "bias_pct": 0.58,
+    "months": 84
+   },
+   "2019-2021": {
+    "bias_pct": 3.95,
+    "months": 36
+   },
+   "2022_on": {
+    "bias_pct": 4.85,
+    "months": 56
+   }
+  },
+  "texas": {
+   "2012-2018": {
+    "bias_pct": -1.52,
+    "months": 84
+   },
+   "2019-2021": {
+    "bias_pct": 0.59,
+    "months": 36
+   },
+   "2022_on": {
+    "bias_pct": 11.75,
+    "months": 56
+   }
+  }
+ }
 }

@@ -77,8 +77,15 @@ Days a sensor had no data for a whole region. **These days are NaN in every seri
                          "global_ratio": {...}, "harmonized": {...}},
              "transfer_noaa20": {"raw_viirs": {...}, "global_ratio": {...}, "harmonized": {...}}},
  "regions": {"texas": {"holdout": {...}, "transfer_noaa20": {...}}, "amazon": {...}, "australia": {...}},
- "notes": ["plain-English caveats"]}
+ "notes": ["plain-English caveats"],
+ "leave_one_region_out": {"texas": {"fit_on": ["amazon", "australia"],
+     "own_region_fit": {"bias_pct": 0, "r2": 0, "nrmse": 0, "months": 0},
+     "other_regions_fit": {...}, "other_regions_global_ratio": {...}}, "amazon": {...}, "australia": {...}},
+ "drift_vs_modis": {"texas": {"2012-2018": {"bias_pct": 0, "months": 0}, "2019-2021": {...},
+                              "2022_on": {...}}, "amazon": {...}, "australia": {...}}}
 ```
+  `leave_one_region_out` and `drift_vs_modis` are optional (added by `python -m pipeline.robustness`,
+  which runs after `validate` and `app`); readers must ignore keys they don't know.
 - `results/figures/*.png` (committed): at least `continuity_<region>.png`, `scatter_before_after.png`,
   `bias_before_after.png`, `overpass_times.png`.
 

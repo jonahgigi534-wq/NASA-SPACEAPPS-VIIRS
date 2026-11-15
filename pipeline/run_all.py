@@ -29,6 +29,7 @@ STEPS = [
     ("harmonize", ["pipeline.harmonize"], "data/processed/harmonize_models.json"),
     ("validate", ["pipeline.validate"], "results/metrics.json + scatter/bias figures"),
     ("app", ["pipeline.build_app_data"], "data/app/ (CONTRACTS.md section 2)"),
+    ("robustness", ["pipeline.robustness"], "metrics.json: leave_one_region_out + drift_vs_modis"),
     ("continuity", ["pipeline.validate", "--continuity"], "results/figures/continuity_<region>.png"),
     ("presets", ["pipeline.presets"], "docs/presets.json (biggest anomalies)"),
 ]

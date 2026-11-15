@@ -46,6 +46,8 @@ The map, the calendar and the charts all add up these weights.
 We didn't grade the method on the data it learned from.
 
 - **Learn on 2012–2018, test on 2019 → 2026.** The test years were never used for fitting.
+- **Leave one region out.** Refit on two regions, test on the third, to see whether one
+  translation could serve everywhere.
 - **A second, independent test: NOAA-20.** This VIIRS satellite was **never used in fitting**.
   If the translation also works for it, it's capturing the sensor difference, not quirks of one
   satellite.
@@ -90,6 +92,31 @@ Averaged across the regions (each region's error scaled to its own size), FireBr
 | Texas | 144 (+5.97%) | 265 (+1.79%) | +680.0% |
 | Amazon | 1,494 (−1.18%) | 1,389 (−9.96%) | +589.93% |
 
+**Is the MODIS reference itself moving?** Harmonized VIIRS vs MODIS Terra + Aqua, total bias by
+period. In the years the translation learned from, all three regions sit within a few percent.
+After 2022, when Terra and Aqua drift in orbit, **Texas jumps to +11.75%** while the Amazon and
+Northern Australia barely move. Part of Texas's test-year bias is MODIS changing, not VIIRS.
+
+| Region | 2012–2018 (learning years) | 2019–2021 | 2022 on |
+|---|---|---|---|
+| Texas | −1.52% | +0.59% | **+11.75%** |
+| Northern Australia | +0.58% | +3.95% | +4.85% |
+| Amazon | −4.98% | −5.77% | −5.57% |
+
+**Would it work in a region it never saw?** For each region we refit the translation on the
+*other two* regions only and scored the test years again (bias of the total; error scaled to the
+region's size in brackets).
+
+| Region | Learned on its own data | Learned on the other two | One global ratio from the other two |
+|---|---|---|---|
+| Texas | +5.97% (0.1925) | −34.83% (0.4481) | +1.45% (0.3543) |
+| Northern Australia | −1.33% (0.1169) | +28.82% (0.4036) | +22.59% (0.3887) |
+| Amazon | −1.18% (0.1972) | −15.73% (0.298) | −18.37% (0.2959) |
+
+It doesn't travel: fire behaves differently in each landscape, so FireBridge needs each
+region's own 2012–2018 overlap years. That is fine for any place on Earth, because VIIRS and MODIS
+overlap everywhere from 2012, but it means a new region must be fitted, not borrowed.
+
 ## Data sources
 
 - **NASA FIRMS, MODIS Collection 6.1 active fires** (Terra and Aqua, 1 km).
@@ -117,7 +144,10 @@ Averaged across the regions (each region's error scaled to its own size), FireBr
   night translation rests on little data.
 - **The MODIS reference itself is drifting.** Since about 2022, Terra and Aqua have been slowly
   leaving their original orbits, so they pass over at different times of day than before.
-  MODIS counts from those years aren't strictly comparable with earlier MODIS counts either.
+  MODIS counts from those years aren't strictly comparable with earlier MODIS counts either. In
+  Texas the harmonized record went from −1.52% vs MODIS in the learning years to +11.75% from 2022.
+- **Each region needs its own fit.** A translation borrowed from the other two regions missed
+  Texas's total by −34.83% and Northern Australia's by +28.82% (see Results).
 - **Hotspots are not burned area.** They count detections of active fire at the moment of an
   overpass. Clouds, smoke and the time of day all affect what is seen.
 - **Recent data is provisional.** Near-real-time detections (marked provisional) may change when

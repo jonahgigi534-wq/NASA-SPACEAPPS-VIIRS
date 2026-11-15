@@ -63,7 +63,16 @@ METRICS = Path("results/metrics.json")
 @pytest.mark.skipif(not METRICS.exists(), reason="run python -m pipeline.validate")
 def test_metrics_json_matches_contract_shape():
     m = json.loads(METRICS.read_text())
-    assert set(m) == {"winner", "baseline_years", "test_years", "overall", "regions", "notes"}
+    base = {"winner", "baseline_years", "test_years", "overall", "regions", "notes"}
+    optional = {"leave_one_region_out", "drift_vs_modis"}   # added by pipeline.robustness
+    assert base <= set(m) <= base | optional
+    for r in m.get("leave_one_region_out", {}).values():
+        assert set(r) == {"fit_on", "own_region_fit", "other_regions_fit", "other_regions_global_ratio"}
+        for k in ("own_region_fit", "other_regions_fit", "other_regions_global_ratio"):
+            assert set(r[k]) == {"bias_pct", "r2", "nrmse", "months"}
+    for periods in m.get("drift_vs_modis", {}).values():
+        assert set(periods) <= {"2012-2018", "2019-2021", "2022_on"}
+        assert all(set(v) == {"bias_pct", "months"} for v in periods.values())
     for block in [m["overall"], *m["regions"].values()]:
         assert set(block) == {"holdout", "transfer_noaa20"}
         for test in block.values():
