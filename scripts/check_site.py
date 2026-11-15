@@ -83,12 +83,12 @@ with sync_playwright() as p:
        page.inner_text("#error-banner")[:80])
 
     # ---- presets ------------------------------------------------------------------------------
-    n = page.locator(".preset").count()
+    n = page.locator("#preset-buttons .preset").count()
     for i in range(n):
-        page.locator(".preset").nth(i).click(); wait_idle(page)
-        ok(f"preset {i + 1}", page.locator(".preset").nth(i).get_attribute("aria-pressed") == "true"
+        page.locator("#preset-buttons .preset").nth(i).click(); wait_idle(page)
+        ok(f"preset {i + 1}", page.locator("#preset-buttons .preset").nth(i).get_attribute("aria-pressed") == "true"
            and page.is_hidden("#error-banner"), f"{area_label(page)} -> {page.inner_text('#kf-pct')}")
-    page.locator(".preset").nth(0).click(); wait_idle(page)
+    page.locator("#preset-buttons .preset").nth(0).click(); wait_idle(page)
 
     # ---- dates, baseline, modes -------------------------------------------------------------
     page.fill("#start", "2011-03-01"); page.fill("#end", "2011-05-31"); page.dispatch_event("#end", "change")
@@ -97,7 +97,7 @@ with sync_playwright() as p:
     for r in ["12m", "ytd", "all"]:
         page.click(f'[data-range="{r}"]'); wait_idle(page)
     ok("quick ranges", "Jan 1, 2001" in page.inner_text("#range-label") and page.is_hidden("#error-banner"))
-    page.locator(".preset").nth(0).click(); wait_idle(page)
+    page.locator("#preset-buttons .preset").nth(0).click(); wait_idle(page)
     page.fill("#base0", "2005"); page.dispatch_event("#base0", "change"); page.wait_for_timeout(700); wait_idle(page)
     ok("baseline years", "2005–2022" in page.inner_text("#range-label"))
     page.fill("#base0", "2003"); page.dispatch_event("#base0", "change"); page.wait_for_timeout(700); wait_idle(page)
@@ -158,6 +158,20 @@ with sync_playwright() as p:
     ok("map month slider", page.inner_text("#map-month-label") != "All selected dates", page.inner_text("#map-month-label"))
     page.evaluate("const s = document.getElementById('map-month'); s.value = '0'; s.dispatchEvent(new Event('input'))")
 
+    # ---- unusual right now + compare ----------------------------------------------------------
+    if page.is_visible("#unusual"):
+        t = page.locator("#unusual-list .preset").first.inner_text()
+        page.locator("#unusual-list .preset").first.click(); wait_idle(page)
+        shown = t.split("\n")[1].split(" hotspots")[0]
+        ok("unusual right now: click analyzes that square", page.inner_text("#kf-total") == shown,
+           f"panel {shown} vs analysis {page.inner_text('#kf-total')}")
+        page.locator("#preset-buttons .preset").nth(0).click(); wait_idle(page)
+    page.locator("#compare summary").click()
+    page.fill("#cmp-start", "2022-04-01"); page.fill("#cmp-end", "2022-07-31")
+    page.click("#compare-form button"); wait_idle(page)
+    ok("compare with another period", page.is_visible("#compare-table") and "Other period" in page.inner_text("#compare-table"),
+       page.inner_text("#compare-table").split("\n")[-1][:60])
+
     # ---- fires vs past fires --------------------------------------------------------------------
     page.click("#tab-fires")
     page.wait_for_function("document.querySelectorAll('#fires-largest tbody tr').length > 0", timeout=30000)
@@ -167,7 +181,7 @@ with sync_playwright() as p:
     ok("show a past fire (dates jump to it)", page.input_value("#start") != before,
        page.inner_text("#range-label")[:40])
     page.click("#tab-calendar")
-    page.locator(".preset").nth(0).click(); wait_idle(page)
+    page.locator("#preset-buttons .preset").nth(0).click(); wait_idle(page)
 
     # ---- GeoJSON / KML, shareable link, weeks, fire power, place search, briefing ------------
     for btn, label, magic in [("#dl-geojson", "GeoJSON", b'{"type":"FeatureCollection"'), ("#dl-kml", "KML", b"<?xml")]:

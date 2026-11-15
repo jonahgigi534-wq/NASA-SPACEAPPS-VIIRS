@@ -45,6 +45,8 @@ def main():
     save("current.json", ok(c.post("/api/current", json=b)).json())
     save("timeseries.json", ok(c.post("/api/timeseries", json=b)).json())
     save("cells.json", ok(c.post("/api/cells", json=b)).json())
+    save("unusual.json", ok(c.get("/api/unusual")).json())
+    save("fires.json", ok(c.post("/api/fires", json=b)).json())
     (OUT / "series.csv").write_text(ok(c.post("/api/export/series.csv", json={**b, "granularity": "day"})).text,
                                     encoding="utf-8", newline="")
     few = {**b, "start": p["start"], "end": p["start"]}

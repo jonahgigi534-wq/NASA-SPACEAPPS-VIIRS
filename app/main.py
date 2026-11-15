@@ -653,6 +653,60 @@ def current(q: Query):
     return clean(an.current(c.series(), as_of, c.baseline, c.provisional_after, c.unit_word))
 
 
+UNUSUAL_MIN_PCT = 300      # this month so far at least 3x the median for the same days...
+UNUSUAL_MIN_HOTSPOTS = 50  # ...and at least 50 hotspots, so quiet tiles can't raise false alarms
+_unusual_cache = {}
+
+
+@app.get("/api/unusual")
+def unusual_now():
+    """'Unusual right now': 1 degree tiles in all regions where this month so far (harmonized)
+    is far above the median for the same days of the month in 2003-2022. Not in the original
+    contract. Cached per loaded data."""
+    store = get_store()
+    end = max(r["end"] for r in store.regions.values())
+    key = (id(store), end)
+    if key in _unusual_cache:
+        return _unusual_cache[key]
+    y0, y1 = DEFAULT_BASELINE
+    cur = store.con.cursor()
+    try:
+        df = cur.execute(
+            "SELECT region, floor(lat) AS tlat, floor(lon) AS tlon, year(date) AS yr, sum(mec) AS v "
+            "FROM cells WHERE month(date) = ? AND day(date) <= ? AND (year(date) BETWEEN ? AND ? OR year(date) = ?) "
+            "GROUP BY 1, 2, 3, 4", [end.month, end.day, y0, y1, end.year]).df()
+    finally:
+        cur.close()
+    years = list(range(y0, y1 + 1))
+    tiles = []
+    for (region, tlat, tlon), g in df.groupby(["region", "tlat", "tlon"]):
+        now = float(g.loc[g["yr"] == end.year, "v"].sum())
+        if now < UNUSUAL_MIN_HOTSPOTS:
+            continue
+        past = g[g["yr"].isin(years)].set_index("yr")["v"].reindex(years).fillna(0)
+        med = float(past.median())
+        pct = now / med * 100 if med > 0 else None
+        if pct is not None and pct < UNUSUAL_MIN_PCT:
+            continue
+        rank = 1 + int((past > now).sum())
+        tiles.append({"region": region, "region_name": store.regions[region]["name"],
+                      "lat": float(tlat) + 0.5, "lon": float(tlon) + 0.5,
+                      # box around exactly this tile's cell centers (tlat .. tlat + 0.9), so
+                      # clicking it analyzes the same cells this count came from
+                      "bbox": [float(tlon) - 0.04, float(tlat) - 0.04, float(tlon) + 0.94, float(tlat) + 0.94],
+                      "value": round(now, 1), "median": round(med, 1),
+                      "pct_of_median": round(pct) if pct is not None else None,
+                      "rank_since_2003": rank, "excess": round(now - med, 1)})
+    tiles.sort(key=lambda t: -t["excess"])
+    out = {"month": end.strftime("%Y-%m"), "days_so_far": end.day, "as_of": end.isoformat(),
+           "baseline": DEFAULT_BASELINE, "min_pct": UNUSUAL_MIN_PCT, "min_hotspots": UNUSUAL_MIN_HOTSPOTS,
+           "provisional": end > min(r["archive_end"] for r in store.regions.values()),
+           "tiles": tiles[:10], "tiles_total": len(tiles)}
+    _unusual_cache.clear()
+    _unusual_cache[key] = out
+    return out
+
+
 @app.post("/api/fires")
 def fires(q: Query):
     """Fire clusters in the area over the whole record: the most recent ones ranked against

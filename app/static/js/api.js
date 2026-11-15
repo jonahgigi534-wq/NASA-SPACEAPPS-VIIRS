@@ -74,5 +74,6 @@ const API = (() => {
     timeseries: (b) => post("timeseries", b),
     cells: (b) => post("cells", b),
     fires: (b) => post("fires", b),
+    unusual: () => MOCK ? fetch("mock/unusual.json").then(handle) : getJSON("/api/unusual"),
   };
 })();

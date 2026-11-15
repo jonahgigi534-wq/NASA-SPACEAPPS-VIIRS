@@ -121,6 +121,7 @@
       ]);
       if (id !== runId) return;                 // a newer request has started
       renderSummary(summary);
+      defaultCompare();
       resetMapMonths();
       refreshMap();
       state.calendarCells = cal.cells;
@@ -148,6 +149,7 @@
     busy(true);
     try {
       renderSummary(await API.summary(body()));
+      defaultCompare();
       resetMapMonths();
       refreshMap();
       renderCalendar();
@@ -522,12 +524,76 @@
     }));
   }
 
+  // ---------------------------------------------------------------- unusual right now
+  async function loadUnusual() {
+    let u;
+    try { u = await API.unusual(); } catch (_) { return; }
+    if (!u.tiles.length) return;
+    const fmtDeg = (v, pos, neg) => `${Math.abs(v).toFixed(1)}°${v >= 0 ? pos : neg}`;
+    $("unusual-title").textContent = `Unusual right now (${FMT.MON[+u.month.slice(5) - 1]} 1–${u.days_so_far})`;
+    $("unusual-hint").textContent = `1° squares where this month so far is at least ${u.min_pct / 100}× the 2003–2022 median for the same days, ` +
+      `with ${u.min_hotspots}+ hotspots${u.provisional ? "; provisional near-real-time data" : ""}. ${u.tiles_total} squares qualify; the biggest excesses:`;
+    const box = $("unusual-list");
+    box.innerHTML = "";
+    u.tiles.slice(0, 5).forEach((t) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "preset";
+      const where = `${t.region_name}, ${fmtDeg(t.lat, "N", "S")} ${fmtDeg(t.lon, "E", "W")}`;
+      b.innerHTML = "<strong></strong><span></span>";
+      b.querySelector("strong").textContent = where;
+      b.querySelector("span").textContent = `${FMT.int(t.value)} hotspots vs a typical ${FMT.int(t.median)} (${FMT.pct(t.pct_of_median)}${t.pct_of_median >= 1000 ? " normal" : " of normal"})`;
+      b.addEventListener("click", () => {
+        const area = { type: "bbox", bbox: t.bbox };
+        setDates(`${u.month}-01`, u.as_of);
+        selectTab("now");
+        MAP.show(area);
+        setArea(area, `Unusual now: ${where}`);
+      });
+      box.appendChild(b);
+    });
+    $("unusual").hidden = false;
+  }
+
+  // ---------------------------------------------------------------- compare two periods
+  function defaultCompare() {               // the same dates one year earlier
+    if (!state.start || !state.end) return;
+    const back = (d) => `${+d.slice(0, 4) - 1}${d.slice(4)}`.replace("-02-29", "-02-28");
+    $("cmp-start").value = back(state.start);
+    $("cmp-end").value = back(state.end);
+    $("compare-table").hidden = true;
+  }
+  async function runCompare() {
+    const s2 = $("cmp-start").value, e2 = $("cmp-end").value;
+    if (!s2 || !e2) return;
+    busy(true);
+    try {
+      const [a, b] = await Promise.all([API.summary(body()), API.summary(body({ start: s2, end: e2 }))]);
+      const col = (x) => ({
+        dates: `${FMT.date(x.range.start)} – ${FMT.date(x.range.end)}`,
+        total: FMT.int(x.key_figures.total_hotspots),
+        pct: FMT.pct(x.key_figures.pct_of_median),
+        month: FMT.monthLabel(x.key_figures.busiest_month),
+        missing: String(x.missing_days),
+      });
+      const A = col(a), B = col(b);
+      const ratio = b.key_figures.total_hotspots > 0 ? a.key_figures.total_hotspots / b.key_figures.total_hotspots : null;
+      const rows = [["Dates", A.dates, B.dates], [`Total (${units()})`, A.total, B.total], ["vs normal", A.pct, B.pct],
+                    ["Busiest month", A.month, B.month], ["Days with no data", A.missing, B.missing]];
+      const t = $("compare-table");
+      t.innerHTML = `<caption class="sr-only">Your dates compared with another period</caption><thead><tr><th scope="col"></th><th scope="col">Your dates</th><th scope="col">Other period</th></tr></thead><tbody>` +
+        rows.map(([k, x, y]) => `<tr><th scope="row">${k}</th><td>${x}</td><td>${y}</td></tr>`).join("") +
+        (ratio != null ? `<tr><th scope="row">Your dates vs other</th><td colspan="2">${ratio >= 1 ? `${ratio.toFixed(1)}× as many` : `${Math.round(ratio * 100)}% as many`}</td></tr>` : "") +
+        "</tbody>";
+      t.hidden = false;
+    } catch (e) { failed(e); } finally { busy(false); }
+  }
+
   // ---------------------------------------------------------------- choosing an area
   function setArea(area, label, presetIndex = null) {
     state.area = area;
     state.areaLabel = label;
     state.presetIndex = presetIndex;
-    document.querySelectorAll(".preset").forEach((b, i) => b.setAttribute("aria-pressed", String(i === presetIndex)));
+    document.querySelectorAll("#preset-buttons .preset").forEach((b, i) => b.setAttribute("aria-pressed", String(i === presetIndex)));
     runAll();
   }
 
@@ -651,6 +717,8 @@
     $("map-month").addEventListener("input", debounce(() => { stopPlay(); refreshMap(); }, 120));
     $("map-play").addEventListener("click", togglePlay);
 
+    $("compare-form").addEventListener("submit", (e) => { e.preventDefault(); runCompare(); });
+
     // shareable link
     $("copy-link").addEventListener("click", async () => {
       writeHash();
@@ -719,6 +787,7 @@
         b.addEventListener("click", () => applyPreset(p, i));
         box.appendChild(b);
       });
+      loadUnusual();
       const shared = readHash();
       if (shared) applyShared(shared);
       else if (presets.length) applyPreset(presets[0], 0);

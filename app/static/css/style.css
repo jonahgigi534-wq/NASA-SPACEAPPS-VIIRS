@@ -268,3 +268,9 @@ input[type=number], input[type=date] { font: inherit; font-size: 14px; color: va
 .data-table tr.latest td { background: var(--accent-soft); font-weight: 600; }
 .data-table .btn-small { padding: 3px 8px; }
 .tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 99px; background: #eee; color: #444; margin-left: 4px; }
+.unusual { margin-top: 12px; }
+.unusual .preset { background: #fff7ed; }
+details.compare { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 10px 14px; margin: -2px 0 12px; }
+details.compare summary { cursor: pointer; font-weight: 600; font-size: 13.5px; }
+.compare-form { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin: 10px 0; }
+@media print { details.compare { display: none !important; } }

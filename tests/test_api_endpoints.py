@@ -244,3 +244,17 @@ def test_fires_endpoint(client):
     assert j["clusters_total"] > 0 and j["latest"] and j["largest"]
     assert j["largest"][0]["rank"] == 1 and j["summary_text"]
     assert dt < 2.0, f"took {dt:.2f} s"
+
+
+def test_unusual_now(client):
+    r = client.get("/api/unusual")
+    assert r.status_code == 200, r.text
+    j = r.json()
+    assert {"month", "days_so_far", "tiles", "tiles_total", "min_pct", "min_hotspots"} <= set(j)
+    for t in j["tiles"]:
+        assert t["value"] >= j["min_hotspots"]
+        assert t["pct_of_median"] is None or t["pct_of_median"] >= j["min_pct"]
+        # the tile's box selects exactly the cells the count came from
+        s = client.post("/api/summary", json={"area": {"type": "bbox", "bbox": t["bbox"]},
+                                             "start": f"{j['month']}-01", "end": j["as_of"]}).json()
+        assert s["key_figures"]["total_hotspots"] == pytest.approx(t["value"], abs=1)

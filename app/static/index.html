@@ -77,6 +77,12 @@
         <div id="preset-buttons" class="preset-buttons"></div>
       </div>
 
+      <div class="unusual" id="unusual" hidden>
+        <h3 class="mini-title" id="unusual-title">Unusual right now</h3>
+        <p class="hint" id="unusual-hint"></p>
+        <div id="unusual-list" class="preset-buttons"></div>
+      </div>
+
       <details class="coords">
         <summary>Type coordinates instead</summary>
         <form id="bbox-form" class="coord-form" aria-label="Box by coordinates">
@@ -170,6 +176,16 @@
         <span class="summary-icon" aria-hidden="true">i</span>
         <p id="summary-text">Choose an area to see its fire history.</p>
       </div>
+
+      <details class="compare" id="compare">
+        <summary>Compare with another period</summary>
+        <form id="compare-form" class="compare-form">
+          <label>From <input id="cmp-start" type="date" min="2001-01-01"></label>
+          <label>To <input id="cmp-end" type="date" min="2001-01-01"></label>
+          <button type="submit" class="btn">Compare</button>
+        </form>
+        <div class="table-wrap"><table class="data-table" id="compare-table" hidden></table></div>
+      </details>
 
       <div class="tabs" role="tablist" aria-label="Analyses">
         <button role="tab" id="tab-calendar" aria-controls="panel-calendar" aria-selected="true">Burning calendar</button>
