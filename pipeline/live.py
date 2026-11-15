@@ -186,37 +186,62 @@ def cell_id(lat, lon):
             + np.round((np.asarray(lon) + 180) * 10).astype(np.int64)).astype(np.int32)
 
 
-def harmonization_factors(data_dir):
-    """{region: (count factor, frp factor)} that turn raw VIIRS into MODIS-equivalent units,
-    learned from the main app data (see the module docstring)."""
+MIN_MONTH_SAMPLE = 200    # VIIRS detections needed to trust a month's own factor
+
+
+def harmonization_factors(data_dir, since=None, until=None):
+    """{region: {"all": (count k, frp k), "month": {1..12: (count k, frp k)}}}: how much Track A's
+    harmonization scales raw (satellite-averaged) VIIRS, per region and per calendar month,
+    learned from the last 3 science-quality years of the main app data (or since..until).
+    The ratio changes with the season (in the Amazon from about 0.15 to 0.27), so one factor per
+    region would over- or under-count depending on the month."""
     import duckdb
     cells = str(Path(data_dir) / "cells_daily.parquet").replace("\\", "/")
     hot = str(Path(data_dir) / "hotspots.parquet").replace("\\", "/")
     con = duckdb.connect()
+    if since:
+        window = f"date BETWEEN DATE '{since}' AND DATE '{until}'"
+        last = ""
+    else:
+        window = "date >= since"
+        last = "JOIN (SELECT region, max(date) - INTERVAL 3 YEAR AS since FROM v0 GROUP BY region) l USING (region)"
     out = {}
     try:
         rows = con.execute(f"""
-            WITH v AS (SELECT * FROM read_parquet('{cells}')
-                       WHERE source = 'VIIRS' AND NOT provisional),
-                 last AS (SELECT region, max(date) - INTERVAL 3 YEAR AS since FROM v GROUP BY region)
-            SELECT v.region, sum(mec), sum(viirs_n), sum(mefrp)
-            FROM v JOIN last USING (region) WHERE v.date >= last.since GROUP BY v.region
+            WITH v0 AS (SELECT * FROM read_parquet('{cells}') WHERE source = 'VIIRS' AND NOT provisional),
+                 v AS (SELECT v0.* FROM v0 {last} WHERE {window})
+            SELECT region, month(date) AS m, sum(mec), sum(viirs_n), sum(mefrp) FROM v GROUP BY 1, 2
         """).fetchall()
-        frp = dict(con.execute(f"""
-            WITH h AS (SELECT * FROM read_parquet('{hot}')
-                       WHERE sensor = 'VIIRS' AND NOT provisional),
-                 last AS (SELECT region, max(date) - INTERVAL 3 YEAR AS since FROM h GROUP BY region)
-            SELECT h.region, sum(frp) FROM h JOIN last USING (region)
-            WHERE h.date >= last.since GROUP BY h.region
-        """).fetchall())
+        # VIIRS fire power averaged over the satellites that observed each day (Track A's rule)
+        frp = {(r, m): f for r, m, f in con.execute(f"""
+            WITH v0 AS (SELECT region, date, satellite, frp FROM read_parquet('{hot}')
+                        WHERE sensor = 'VIIRS' AND NOT provisional),
+                 v AS (SELECT v0.* FROM v0 {last} WHERE {window}),
+                 ns AS (SELECT region, date, count(DISTINCT satellite) AS n FROM v GROUP BY 1, 2)
+            SELECT v.region, month(v.date), sum(v.frp / ns.n) FROM v JOIN ns USING (region, date) GROUP BY 1, 2
+        """).fetchall()}
     except Exception as ex:
         log(f"  (couldn't read harmonization from {data_dir}: {ex}; using 1/{FALLBACK_VIIRS_RATIO})")
         return out
-    for region, mec, viirs_n, mefrp in rows:
-        if viirs_n and mec:
-            k_frp = (mefrp / frp[region]) if frp.get(region) else 1.0 / FALLBACK_VIIRS_RATIO
-            out[region] = (mec / viirs_n, k_frp)
+    by_region = {}
+    for region, m, mec, viirs_n, mefrp in rows:
+        by_region.setdefault(region, []).append((int(m), mec or 0, viirs_n or 0, mefrp or 0, frp.get((region, m), 0)))
+    for region, ms in by_region.items():
+        tot = [sum(x[i] for x in ms) for i in range(1, 5)]
+        if not tot[1] or not tot[0]:
+            continue
+        k_all = (tot[0] / tot[1], tot[2] / tot[3] if tot[3] else 1.0 / FALLBACK_VIIRS_RATIO)
+        month = {}
+        for m, mec, vn, mefrp, vf in ms:
+            if vn >= MIN_MONTH_SAMPLE and mec > 0:
+                month[m] = (mec / vn, mefrp / vf if vf else k_all[1])
+        out[region] = {"all": k_all, "month": month}
     return out
+
+
+def factor_for(factors, month):
+    """(count k, frp k) for a calendar month, falling back to the region's overall factor."""
+    return factors["month"].get(month, factors["all"])
 
 
 def static_cells(region):
@@ -231,7 +256,6 @@ def static_cells(region):
 
 def build_region(region, points, factors, days):
     """Hotspot points of one region -> (cells_daily rows, hotspot rows, missing-day rows)."""
-    k_count, k_frp = factors
     if points.empty:
         return (pd.DataFrame(columns=CELLS_SCHEMA.names), pd.DataFrame(columns=HOTSPOT_COLUMNS),
                 pd.DataFrame(columns=["region", "date", "scope"]))
@@ -246,16 +270,20 @@ def build_region(region, points, factors, days):
         p = p[~p["cell_id"].isin(static)]
         log(f"  [{region}] removed {before - len(p)} detections on static-source cells")
 
-    # per cell-day: MODIS count, VIIRS count = max over single satellites (de-duplication)
+    # per cell-day: MODIS count; VIIRS count averaged over the VIIRS satellites that observed
+    # the region that day (Track A's de-duplication rule: average, don't add up)
     keys = ["cell_id", "date"]
     modis = p[p["sensor"] == "MODIS"].groupby(keys).size().rename("modis_n")
     v = p[p["sensor"] == "VIIRS"]
-    per_sat = v.groupby(keys + ["satellite"]).agg(n=("frp", "size"), frp=("frp", "sum"))
-    best = per_sat.sort_values("n").groupby(level=[0, 1]).tail(1).droplevel("satellite")
-    cells = pd.concat([modis, best.rename(columns={"n": "viirs_n", "frp": "viirs_frp"})],
-                      axis=1).fillna(0).reset_index()
-    cells["mec"] = cells["viirs_n"] * k_count
-    cells["mefrp"] = cells["viirs_frp"] * k_frp
+    n_sats = v.groupby("date")["satellite"].nunique()
+    vc = v.groupby(keys).agg(viirs_n=("frp", "size"), viirs_frp=("frp", "sum"))
+    div = vc.index.get_level_values("date").map(n_sats).to_numpy(dtype=float)
+    vc["viirs_n"] = vc["viirs_n"] / div
+    vc["viirs_frp"] = vc["viirs_frp"] / div
+    cells = pd.concat([modis, vc], axis=1).fillna(0).reset_index()
+    k = [factor_for(factors, d.month) for d in cells["date"]]
+    cells["mec"] = cells["viirs_n"] * np.array([x[0] for x in k])
+    cells["mefrp"] = cells["viirs_frp"] * np.array([x[1] for x in k])
     cells["region"] = region
     cells["lat"] = (cells["cell_id"] // 3600) / 10 - 90
     cells["lon"] = (cells["cell_id"] % 3600) / 10 - 180
@@ -348,17 +376,22 @@ def run(key, data_dir=DATA_DIR, regions=None, max_days=MAX_DAYS, client=None, to
             pts = pts[(pts["date"] >= first) & (pts["date"] <= fetched_to)]
             w, s, e, n = cov["bbox"]
             pts = pts[(pts["lat"] >= s) & (pts["lat"] <= n) & (pts["lon"] >= w) & (pts["lon"] <= e)]
-            f = factors.get(region, (1 / FALLBACK_VIIRS_RATIO, 1 / FALLBACK_VIIRS_RATIO))
+            fb = (1 / FALLBACK_VIIRS_RATIO, 1 / FALLBACK_VIIRS_RATIO)
+            f = factors.get(region, {"all": fb, "month": {}})
             days = [first + timedelta(days=i) for i in range((fetched_to - first).days + 1)]
             cells, points, missing = build_region(region, pts, f, days)
             all_cells.append(cells)
             all_points.append(points)
             all_missing.append(missing)
+            used = sorted({d.month for d in days})
             live_cov[region] = {"live_start": first.isoformat(), "live_end": fetched_to.isoformat(),
                                 "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                                "viirs_count_factor": round(f[0], 4), "sources": list(SOURCES)}
-            log(f"[{region}] {len(points):,} hotspots, {len(cells):,} cell-days, "
-                f"harmonization factor {f[0]:.3f}, {len(missing)} missing-day rows")
+                                "viirs_count_factor": round(f["all"][0], 4),
+                                "viirs_count_factor_by_month": {str(m): round(factor_for(f, m)[0], 4) for m in used},
+                                "sources": list(SOURCES)}
+            log(f"[{region}] {len(points):,} hotspots, {len(cells):,} cell-days, harmonization factor "
+                + ", ".join(f"month {m}: {factor_for(f, m)[0]:.3f}" for m in used)
+                + f", {len(missing)} missing-day rows")
     finally:
         if own_client:
             client.close()

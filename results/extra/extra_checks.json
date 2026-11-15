@@ -1,0 +1,163 @@
+{
+ "generated": "2026-11-14",
+ "data": "firebridge_real_app_data",
+ "live_harmonization": {
+  "fit": [
+   "2023-08-01",
+   "2025-07-31"
+  ],
+  "test": [
+   "2025-08-01",
+   "2026-07-31"
+  ],
+  "regions": {
+   "amazon": {
+    "one_factor": {
+     "monthly_abs_error_pct": 28.4,
+     "total_bias_pct": 4.1
+    },
+    "factor_by_month": {
+     "monthly_abs_error_pct": 10.7,
+     "total_bias_pct": 3.73
+    },
+    "months_tested": 12,
+    "factor_range": [
+     0.156,
+     0.267
+    ]
+   },
+   "australia": {
+    "one_factor": {
+     "monthly_abs_error_pct": 10.0,
+     "total_bias_pct": 2.06
+    },
+    "factor_by_month": {
+     "monthly_abs_error_pct": 4.6,
+     "total_bias_pct": 0.75
+    },
+    "months_tested": 12,
+    "factor_range": [
+     0.176,
+     0.232
+    ]
+   },
+   "texas": {
+    "one_factor": {
+     "monthly_abs_error_pct": 17.3,
+     "total_bias_pct": 0.93
+    },
+    "factor_by_month": {
+     "monthly_abs_error_pct": 9.6,
+     "total_bias_pct": 1.29
+    },
+    "months_tested": 12,
+    "factor_range": [
+     0.184,
+     0.304
+    ]
+   }
+  }
+ },
+ "drift": {
+  "amazon": {
+   "2012-2018 (fit years)": {
+    "bias_pct": -4.98,
+    "monthly_r": 0.998,
+    "daily_r": 0.967,
+    "months": 84
+   },
+   "2019-2021": {
+    "bias_pct": -5.77,
+    "monthly_r": 0.997,
+    "daily_r": 0.968,
+    "months": 36
+   },
+   "2022 onward": {
+    "bias_pct": -5.57,
+    "monthly_r": 0.998,
+    "daily_r": 0.971,
+    "months": 56
+   }
+  },
+  "australia": {
+   "2012-2018 (fit years)": {
+    "bias_pct": 0.58,
+    "monthly_r": 0.996,
+    "daily_r": 0.952,
+    "months": 84
+   },
+   "2019-2021": {
+    "bias_pct": 3.95,
+    "monthly_r": 0.991,
+    "daily_r": 0.937,
+    "months": 36
+   },
+   "2022 onward": {
+    "bias_pct": 4.85,
+    "monthly_r": 0.994,
+    "daily_r": 0.949,
+    "months": 56
+   }
+  },
+  "texas": {
+   "2012-2018 (fit years)": {
+    "bias_pct": -1.52,
+    "monthly_r": 0.963,
+    "daily_r": 0.913,
+    "months": 84
+   },
+   "2019-2021": {
+    "bias_pct": 0.59,
+    "monthly_r": 0.947,
+    "daily_r": 0.934,
+    "months": 36
+   },
+   "2022 onward": {
+    "bias_pct": 11.75,
+    "monthly_r": 0.973,
+    "daily_r": 0.881,
+    "months": 56
+   }
+  }
+ },
+ "missing_days": {
+  "source": "https://firms.modaps.eosdis.nasa.gov/api/missing_data/",
+  "official_days_by_satellite": {
+   "Aqua (MODIS)": 26,
+   "NOAA-20 (VIIRS)": 6,
+   "NOAA-21 (VIIRS)": 9,
+   "Suomi NPP (VIIRS)": 80,
+   "Terra (MODIS)": 57
+  },
+  "official_days_both_modis_down": 0,
+  "official_snpp_down_before_noaa20": 1,
+  "regions": {
+   "amazon": {
+    "our_modis_missing_days": 81,
+    "official_terra_or_aqua_down_days": 83,
+    "flagged_and_official": 46,
+    "official_not_flagged": 37,
+    "flagged_not_official": 35
+   },
+   "australia": {
+    "our_modis_missing_days": 105,
+    "official_terra_or_aqua_down_days": 83,
+    "flagged_and_official": 48,
+    "official_not_flagged": 35,
+    "flagged_not_official": 57
+   },
+   "texas": {
+    "our_modis_missing_days": 161,
+    "official_terra_or_aqua_down_days": 83,
+    "flagged_and_official": 45,
+    "official_not_flagged": 38,
+    "flagged_not_official": 116
+   }
+  },
+  "reading": "Track A's inferred MODIS-missing days catch about half of the days FIRMS lists one MODIS satellite as down, and also flag days FIRMS does not list (likely days when MODIS saw no fire while the more sensitive VIIRS saw small ones). Only 1 S-NPP outage day falls before NOAA-20 started, so VIIRS gaps are covered by the other satellite in the averaged record."
+ },
+ "notes": [
+  "Computed from data/app only (cells_daily, missing_days, hotspots); see scripts/extra_checks.py.",
+  "Drift compares harmonized VIIRS with MODIS Terra + Aqua, the scale the harmonization targets."
+ ]
+}

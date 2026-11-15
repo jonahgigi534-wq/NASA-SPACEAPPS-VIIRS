@@ -97,9 +97,11 @@ def test_live_files_and_harmonization(data_dir, capsys):
     assert cells["provisional"].all() and hot["provisional"].all()
 
     day = cells[cells["date"] == date(2026, 11, 2)].iloc[0]
-    assert day["viirs_n"] == 4            # de-duplicated: max single satellite, not 4 + 3
+    assert day["viirs_n"] == 3.5          # averaged over the 2 satellites (Track A's rule), not 4 + 3
     assert day["modis_n"] == 12
-    assert day["mec"] == pytest.approx(4 * cov["texas"]["viirs_count_factor"], rel=1e-3)
+    k_nov = cov["texas"]["viirs_count_factor_by_month"]["11"]          # November's own factor
+    assert k_nov == pytest.approx(1 / 3, rel=0.25)
+    assert day["mec"] == pytest.approx(3.5 * k_nov, rel=1e-3)
     # every cell-day's hotspot weights add up to its harmonized count
     w = hot.groupby("date")["weight"].sum()
     m = cells.set_index("date")["mec"]

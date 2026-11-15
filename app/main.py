@@ -1048,6 +1048,85 @@ def methods_page():
     return HTMLResponse(page_html)
 
 
+def _checks_html():
+    """'More checks' page body from results/extra/extra_checks.json (scripts/extra_checks.py)."""
+    import html as h
+    p = REPO / "results" / "extra" / "extra_checks.json"
+    if not p.exists():
+        return "<h1>More checks</h1><p>Not computed yet: run <code>python scripts/extra_checks.py</code>.</p>"
+    d = json.loads(p.read_text(encoding="utf-8"))
+    names = {"texas": "Texas", "amazon": "Amazon", "australia": "Northern Australia"}
+    sg = lambda x: f"{'+' if x >= 0 else '−'}{abs(x):.2f}%"
+    live = d["live_harmonization"]
+    rows_live = "".join(
+        f"<tr><td>{names.get(r, r)}</td><td class='num'>{v['one_factor']['monthly_abs_error_pct']:.1f}%</td>"
+        f"<td class='num'><b>{v['factor_by_month']['monthly_abs_error_pct']:.1f}%</b></td>"
+        f"<td class='num'>{sg(v['one_factor']['total_bias_pct'])}</td><td class='num'>{sg(v['factor_by_month']['total_bias_pct'])}</td>"
+        f"<td class='num'>{v['factor_range'][0]:.3f}–{v['factor_range'][1]:.3f}</td></tr>"
+        for r, v in live["regions"].items())
+    rows_drift = ""
+    for r, periods in d["drift"].items():
+        for name, v in periods.items():
+            rows_drift += (f"<tr><td>{names.get(r, r)}</td><td>{h.escape(name)}</td><td class='num'>{sg(v['bias_pct'])}</td>"
+                           f"<td class='num'>{v['monthly_r']:.3f}</td><td class='num'>{v['daily_r']:.3f}</td></tr>")
+    md = d["missing_days"]
+    if "error" in md:
+        miss = f"<p>{h.escape(md['error'])}</p>"
+    else:
+        rows_miss = "".join(
+            f"<tr><td>{names.get(r, r)}</td><td class='num'>{v['our_modis_missing_days']}</td>"
+            f"<td class='num'>{v['official_terra_or_aqua_down_days']}</td><td class='num'>{v['flagged_and_official']}</td>"
+            f"<td class='num'>{v['official_not_flagged']}</td><td class='num'>{v['flagged_not_official']}</td></tr>"
+            for r, v in md["regions"].items())
+        miss = (f"<table class='results-table'><thead><tr><th>Region</th><th class='num'>Days flagged missing (MODIS)</th>"
+                f"<th class='num'>FIRMS: Terra or Aqua down</th><th class='num'>Both</th><th class='num'>Only FIRMS</th>"
+                f"<th class='num'>Only flagged</th></tr></thead><tbody>{rows_miss}</tbody></table>"
+                f"<p>{h.escape(md['reading'])} Source: <a href='{md['source']}'>FIRMS missing-data table</a>.</p>")
+    fig = lambda f, c: (f'<figure><img src="/extra-figures/{f}" alt="{h.escape(c)}" loading="lazy">'
+                        f"<figcaption>{h.escape(c)}</figcaption></figure>")
+    return f"""
+<h1>More checks</h1>
+<p>Three extra checks that use only the app's own data, run by <code>scripts/extra_checks.py</code>
+({h.escape(d['generated'])}). The main validation (temporal holdout and NOAA-20 transfer) is on
+<a href="/methods">How it works</a>.</p>
+
+<h2>1. Live data: scaling by month halves the error</h2>
+<p>The newest days come from FIRMS's near-real-time feed, after the archive ends. They are scaled to the MODIS
+level by how much the harmonization scaled raw VIIRS in the archive. That factor changes with the season, so the
+live feed now uses one factor per region and calendar month. Fitted on {live['fit'][0]} to {live['fit'][1]} and
+tested on {live['test'][0]} to {live['test'][1]}, which it never saw:</p>
+<table class="results-table"><thead><tr><th>Region</th><th class="num">Monthly error, one factor</th>
+<th class="num">Monthly error, factor by month</th><th class="num">Total bias, one factor</th>
+<th class="num">Total bias, by month</th><th class="num">Factor range</th></tr></thead><tbody>{rows_live}</tbody></table>
+{fig("live_factor_by_month.png", "MODIS-equivalent hotspots per raw VIIRS hotspot, by calendar month.")}
+
+<h2>2. Does the record drift as the MODIS satellites age?</h2>
+<p>In the years both sensors fly, the harmonized record should stay on the MODIS Terra + Aqua scale. Texas and
+Northern Australia match it in the fitting years and drift upward later, Texas most since 2022, when Terra and
+Aqua began leaving their orbits. The Amazon sits about 5% low in every period, the fitting years included, so its
+gap is a steady offset rather than drift. Bias is total harmonized vs MODIS; r is the correlation of monthly and
+daily regional totals.</p>
+<table class="results-table"><thead><tr><th>Region</th><th>Years</th><th class="num">Bias vs MODIS</th>
+<th class="num">Monthly r</th><th class="num">Daily r</th></tr></thead><tbody>{rows_drift}</tbody></table>
+{fig("drift_by_year.png", "Harmonized VIIRS divided by MODIS Terra + Aqua, per whole year; 1.0 means the same scale.")}
+
+<h2>3. Missing days compared with FIRMS's official list</h2>
+{miss}
+"""
+
+
+@app.get("/checks", include_in_schema=False)
+def checks_page():
+    page = STATIC_DIR / "checks.html"
+    if not page.exists():
+        return JSONResponse(status_code=404, content={"error": "checks.html isn't built yet."})
+    return HTMLResponse(page.read_text(encoding="utf-8").replace("<!--CHECKS_CONTENT-->", _checks_html()))
+
+
+if (REPO / "results" / "extra").is_dir():
+    app.mount("/extra-figures", StaticFiles(directory=REPO / "results" / "extra"), name="extra-figures")
+
+
 # Track A's files the website shows, served straight from where Track A keeps them, so the
 # site never has stale copies: presets, Methods text, metrics.json and validation figures.
 CONTENT_FILES = {"presets.json": REPO / "docs" / "presets.json",

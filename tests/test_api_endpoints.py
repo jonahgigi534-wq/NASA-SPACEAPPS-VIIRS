@@ -258,3 +258,11 @@ def test_unusual_now(client):
         s = client.post("/api/summary", json={"area": {"type": "bbox", "bbox": t["bbox"]},
                                              "start": f"{j['month']}-01", "end": j["as_of"]}).json()
         assert s["key_figures"]["total_hotspots"] == pytest.approx(t["value"], abs=1)
+
+
+def test_checks_page(client):
+    r = client.get("/checks")
+    assert r.status_code == 200 and "More checks" in r.text
+    from pathlib import Path
+    if (Path(__file__).resolve().parent.parent / "results" / "extra" / "extra_checks.json").exists():
+        assert r.text.count("<table") == 3 and "/extra-figures/drift_by_year.png" in r.text
