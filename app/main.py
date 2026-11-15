@@ -695,9 +695,16 @@ def export_series(q: Query):
                     headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 
-@app.post("/api/export/hotspots.csv")
-def export_hotspots(q: Query):
-    """The hotspot points in the area and date range, streamed, capped at 200,000 rows.
+HOTSPOT_COLUMNS = ["lat", "lon", "datetime_utc", "satellite", "sensor", "frp", "confidence",
+                   "daynight", "provisional", "weight"]
+def truncated_note():
+    return (f"Only the first {HOTSPOT_ROW_CAP:,} hotspots are included. "
+            "Pick a smaller area or a shorter date range to get them all.")
+
+
+def _hotspot_batches(q: Query):
+    """(start, end, generator). The generator yields DataFrames of hotspot rows (HOTSPOT_COLUMNS),
+    capped at HOTSPOT_ROW_CAP, then the string "truncated" if the cap was hit.
 
     A point is included if its 0.1 degree cell is in the area (the same rule the analytics
     use), so the 'weight' column adds up to the harmonized total."""
@@ -729,7 +736,7 @@ def export_hotspots(q: Query):
     params = [start, end, s - pad, n + pad, w - pad, e + pad] + ([sensor] if sensor else [])
     store = c.store
 
-    def stream():
+    def batches():
         cur = store.con.cursor()
         try:
             cur.register("sel", sel)
@@ -737,26 +744,103 @@ def export_hotspots(q: Query):
             # DuckDB 2.x: to_arrow_reader(); DuckDB 1.x: fetch_arrow_reader()
             reader = (rel.to_arrow_reader() if hasattr(rel, "to_arrow_reader")
                       else rel.fetch_arrow_reader(50_000))
-            sent, header = 0, True
+            sent = 0
             for batch in reader:
                 df = batch.to_pandas()
                 if sent + len(df) > HOTSPOT_ROW_CAP:
-                    df = df.iloc[:HOTSPOT_ROW_CAP - sent]
-                    yield df.to_csv(index=False, header=header, lineterminator="\n")
-                    yield (f"# Only the first {HOTSPOT_ROW_CAP:,} hotspots are included. "
-                           "Pick a smaller area or a shorter date range to get them all.\n")
+                    yield df.iloc[:HOTSPOT_ROW_CAP - sent]
+                    yield "truncated"
                     return
                 sent += len(df)
-                yield df.to_csv(index=False, header=header, lineterminator="\n")
-                header = False
-            if header:   # no rows at all: still send the header line
-                yield "lat,lon,datetime_utc,satellite,sensor,frp,confidence,daynight,provisional,weight\n"
+                yield df
         finally:
             cur.close()
 
-    name = f"firebridge_hotspots_{start}_{end}.csv"
-    return StreamingResponse(stream(), media_type="text/csv",
+    return start, end, batches()
+
+
+def _file_response(stream, media_type, name):
+    return StreamingResponse(stream, media_type=media_type,
                              headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
+@app.post("/api/export/hotspots.csv")
+def export_hotspots(q: Query):
+    """The hotspot points in the area and date range as CSV, streamed, capped at 200,000 rows."""
+    start, end, batches = _hotspot_batches(q)
+
+    def stream():
+        yield ",".join(HOTSPOT_COLUMNS) + "\n"
+        for b in batches:
+            if isinstance(b, str):
+                yield f"# {truncated_note()}\n"
+            else:
+                yield b.to_csv(index=False, header=False, lineterminator="\n")
+
+    return _file_response(stream(), "text/csv", f"firebridge_hotspots_{start}_{end}.csv")
+
+
+def _props(r):
+    return {"datetime_utc": r.datetime_utc, "satellite": r.satellite, "sensor": r.sensor,
+            "frp_mw": r.frp, "confidence": r.confidence, "daynight": r.daynight,
+            "provisional": r.provisional == "true", "weight": r.weight}
+
+
+@app.post("/api/export/hotspots.geojson")
+def export_hotspots_geojson(q: Query):
+    """The same hotspots as a GeoJSON FeatureCollection (QGIS, ArcGIS, web maps)."""
+    start, end, batches = _hotspot_batches(q)
+
+    def stream():
+        yield ('{"type":"FeatureCollection","name":"firebridge_hotspots",'
+               '"source":"NASA FIRMS MODIS + VIIRS, harmonized by FireBridge","features":[')
+        first, truncated = True, False
+        for b in batches:
+            if isinstance(b, str):
+                truncated = True
+                continue
+            out = []
+            for r in b.itertuples(index=False):
+                feat = {"type": "Feature", "geometry": {"type": "Point", "coordinates": [r.lon, r.lat]},
+                        "properties": _props(r)}
+                out.append(("" if first else ",") + json.dumps(feat, separators=(",", ":")))
+                first = False
+            yield "".join(out)
+        yield "]" + (f',"note":{json.dumps(truncated_note())}' if truncated else "") + "}"
+
+    return _file_response(stream(), "application/geo+json", f"firebridge_hotspots_{start}_{end}.geojson")
+
+
+@app.post("/api/export/hotspots.kml")
+def export_hotspots_kml(q: Query):
+    """The same hotspots as KML (Google Earth): one placemark per hotspot, with its time."""
+    from xml.sax.saxutils import escape
+    start, end, batches = _hotspot_batches(q)
+
+    def stream():
+        yield ('<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">'
+               f'<Document><name>FireBridge hotspots {start} to {end}</name>'
+               '<description>NASA FIRMS MODIS + VIIRS hotspots; weight = MODIS-equivalent hotspots '
+               'this point adds to the harmonized count.</description>'
+               '<Style id="hs"><IconStyle><color>ff0c59e8</color><scale>0.6</scale><Icon><href>'
+               'http://maps.google.com/mapfiles/kml/shapes/shaded_dot.png</href></Icon></IconStyle></Style>\n')
+        for b in batches:
+            if isinstance(b, str):
+                yield f"<Placemark><name>Note</name><description>{escape(truncated_note())}</description></Placemark>\n"
+                continue
+            out = []
+            for r in b.itertuples(index=False):
+                data = "".join(f'<Data name="{k}"><value>{escape(str(v))}</value></Data>'
+                               for k, v in _props(r).items())
+                out.append(f"<Placemark><name>{escape(r.satellite)} {escape(r.datetime_utc)}</name>"
+                           f"<TimeStamp><when>{escape(r.datetime_utc)}</when></TimeStamp>"
+                           f"<styleUrl>#hs</styleUrl><ExtendedData>{data}</ExtendedData>"
+                           f"<Point><coordinates>{r.lon},{r.lat}</coordinates></Point></Placemark>\n")
+            yield "".join(out)
+        yield "</Document></kml>\n"
+
+    return _file_response(stream(), "application/vnd.google-earth.kml+xml",
+                     f"firebridge_hotspots_{start}_{end}.kml")
 
 
 FIGURES = [  # (file in results/figures, caption) shown on the Methods page

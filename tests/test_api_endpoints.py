@@ -190,3 +190,28 @@ def test_texas_size_area_is_fast(client):
         dt = time.perf_counter() - t
         assert r.status_code == 200, r.text
         assert dt < 2.0, f"{path} took {dt:.2f} s"
+
+
+def test_hotspots_geojson_and_kml_match_the_csv(client):
+    body = {**TEXAS_2011, "start": "2011-03-01", "end": "2011-03-07"}
+    csv_rows = pd.read_csv(io.StringIO(client.post("/api/export/hotspots.csv", json=body).text), comment="#")
+    gj = client.post("/api/export/hotspots.geojson", json=body)
+    assert gj.status_code == 200
+    fc = json.loads(gj.text)
+    assert fc["type"] == "FeatureCollection" and len(fc["features"]) == len(csv_rows)
+    f0 = fc["features"][0]
+    assert f0["geometry"]["coordinates"] == [csv_rows.iloc[0]["lon"], csv_rows.iloc[0]["lat"]]
+    assert set(f0["properties"]) >= {"datetime_utc", "satellite", "frp_mw", "weight"}
+    kml = client.post("/api/export/hotspots.kml", json=body)
+    assert kml.status_code == 200 and kml.text.startswith("<?xml")
+    import xml.etree.ElementTree as ET
+    root = ET.fromstring(kml.text)
+    ns = {"k": "http://www.opengis.net/kml/2.2"}
+    assert len(root.findall(".//k:Placemark", ns)) == len(csv_rows)
+
+
+def test_geojson_cap_note(client, monkeypatch):
+    from app import main
+    monkeypatch.setattr(main, "HOTSPOT_ROW_CAP", 5)
+    fc = json.loads(client.post("/api/export/hotspots.geojson", json=TEXAS_2011).text)
+    assert len(fc["features"]) == 5 and "Only the first 5" in fc["note"]
