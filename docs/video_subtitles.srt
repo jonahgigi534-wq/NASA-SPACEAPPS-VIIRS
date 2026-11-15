@@ -1,31 +1,39 @@
 1
-00:00:00,000 --> 00:00:04,000
-MODIS is ending. VIIRS counts don't match.
+00:00:00,000 --> 00:00:03,000
+Texas, 2011: 11.6× normal fire activity.
 
 2
-00:00:04,000 --> 00:00:09,000
-Raw VIIRS jumps in 2012. Ours doesn't.
+00:00:03,000 --> 00:00:06,000
+MODIS is ending. VIIRS counts don't match.
 
 3
-00:00:09,000 --> 00:00:12,000
-Beats the simple fix on unseen years.
+00:00:06,000 --> 00:00:09,500
+Raw VIIRS jumps in 2012. Ours doesn't.
 
 4
-00:00:12,000 --> 00:00:15,000
-Pick any area, any dates.
+00:00:09,500 --> 00:00:12,000
+Beats the simple fix on unseen years.
 
 5
-00:00:15,000 --> 00:00:18,000
-A burning calendar from 2001 to today.
+00:00:12,000 --> 00:00:15,500
+Draw any area: 25 years of fire.
 
 6
-00:00:18,000 --> 00:00:21,000
-This month versus the historical median.
+00:00:15,500 --> 00:00:18,500
+A burning calendar, every month since 2001.
 
 7
-00:00:21,000 --> 00:00:24,000
-Download every hotspot as CSV.
+00:00:18,500 --> 00:00:21,500
+This month versus the historical median.
 
 8
-00:00:24,000 --> 00:00:27,000
+00:00:21,500 --> 00:00:25,000
+The current fire, ranked against every past fire.
+
+9
+00:00:25,000 --> 00:00:27,000
+Download every hotspot as CSV.
+
+10
+00:00:27,000 --> 00:00:29,000
 FireBridge. Built on NASA FIRMS data.
