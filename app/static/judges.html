@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FireBridge: two-minute tour for judges</title>
+  <meta name="description" content="Every part of the NASA Space Apps challenge brief, one click away in FireBridge.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M16 2c2 6 9 9 9 17a9 9 0 0 1-18 0c0-5 3-7 4-11 1 3 3 4 3 4s-1-5 2-10z' fill='%23d9480f'/></svg>">
+</head>
+<body>
+  <a class="skip-link" href="#tour">Skip to the tour</a>
+  <header class="site-header">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2c2 6 9 9 9 17a9 9 0 0 1-18 0c0-5 3-7 4-11 1 3 3 4 3 4s-1-5 2-10z"/></svg>
+      <div>
+        <h1>FireBridge</h1>
+        <p class="tagline">Fire activity 2001 → today, from MODIS and VIIRS satellites, on one consistent scale</p>
+      </div>
+    </div>
+    <nav aria-label="Main">
+      <a href="/">Fire calendar</a>
+      <a href="/methods">How it works</a>
+      <a href="/checks">More checks</a>
+      <a href="/judges" aria-current="page">For judges</a>
+    </nav>
+  </header>
+  <main class="methods" id="tour">
+    <article>
+      <h1>Two-minute tour for judges</h1>
+      <p>Each line of the challenge brief, and the one click that shows it. Every link opens the live app in a
+        prepared view; the address bar keeps the view, so any screen can be shared the same way
+        (<b>Copy link</b> next to the area name).</p>
+
+      <table class="results-table tour">
+        <thead><tr><th>The brief asks for</th><th>Where to look</th></tr></thead>
+        <tbody>
+          <tr><td>Harmonize MODIS and VIIRS so "the sensor of origin no longer matters"</td>
+            <td><a href="/#area=bbox%3A-107%2C25%2C-100%2C36&label=West+Texas+and+northern+Mexico%2C+Apr-Jul+2013&start=2013-04-01&end=2013-07-31&base=2003-2022&mode=viirs_raw&tab=calendar&cal=counts&gran=month&metric=count">Raw VIIRS view</a>:
+              the long-term chart at the bottom jumps in 2012. Switch <b>Satellite record</b> to <b>Harmonized</b>: the jump is gone.
+              Method and test results: <a href="/methods">How it works</a>, <a href="/checks">More checks</a>.</td></tr>
+          <tr><td>Select a region: draw on a map, or enter latitude and longitude</td>
+            <td><a href="/">The app</a>: draw a rectangle, polygon or circle on the map, use <b>Type coordinates instead</b>
+              (box or point + radius), search a place name, or pick a big fire event.</td></tr>
+          <tr><td>A specific date range</td>
+            <td><b>Dates and settings</b>: date pickers and quick ranges. "Normal" years are adjustable too.</td></tr>
+          <tr><td>A burning calendar: number of hotspots from the early 2000s to the present</td>
+            <td><a href="/#area=bbox%3A-107%2C25%2C-100%2C36&label=West+Texas+and+northern+Mexico%2C+Apr-Jul+2011&start=2011-04-01&end=2011-07-31&base=2003-2022&mode=harmonized&tab=calendar&cal=counts&gran=month&metric=count">Burning calendar</a>:
+              every month since 2001; <a href="/#area=bbox%3A-107%2C25%2C-100%2C36&label=West+Texas+and+northern+Mexico%2C+Apr-Jul+2011&start=2011-04-01&end=2011-07-31&base=2003-2022&mode=harmonized&tab=calendar&cal=counts&gran=week&metric=count">by week</a>;
+              click any square for its days. Grey = no satellite data (never shown as zero), hatched = provisional.</td></tr>
+          <tr><td>Which periods of the year see more fires</td>
+            <td><a href="/#area=bbox%3A-107%2C25%2C-100%2C36&label=West+Texas+and+northern+Mexico%2C+Apr-Jul+2011&start=2011-04-01&end=2011-07-31&base=2003-2022&mode=harmonized&tab=patterns&cal=counts&gran=month&metric=count">Patterns &amp; critical periods</a>:
+              typical month by month with the fire season shaded, highest-risk months and weeks, and how often each month has been unusually busy.</td></tr>
+          <tr><td>Which years had more burning activity</td>
+            <td>Same tab: yearly totals with the busiest three highlighted, and the long-term trend (Theil–Sen slope + Mann–Kendall test).</td></tr>
+          <tr><td>How a current fire compares with previous ones</td>
+            <td><a href="/#area=bbox%3A-106%2C35%2C-105%2C37&label=Northern+New+Mexico%2C+spring+2022&start=2022-04-06&end=2022-06-18&base=2003-2022&mode=harmonized&tab=fires&cal=counts&gran=month&metric=count">Fires vs past</a>:
+              hotspots grouped into fire clusters, the latest ranked against every cluster since 2001. Here the largest is the
+              Hermits Peak / Calf Canyon fire of 2022. <b>Show</b> puts any fire on the map.</td></tr>
+          <tr><td>The current month against the historical median</td>
+            <td><a href="/#area=bbox%3A-107%2C25%2C-100%2C36&label=West+Texas+and+northern+Mexico&start=2011-04-01&end=2011-07-31&base=2003-2022&mode=harmonized&tab=now&cal=counts&gran=month&metric=count">Now vs history</a>:
+              this month so far vs the median for the same days, its rank, and each day vs normal. Live FIRMS data, refreshed hourly.
+              <b>Unusual right now</b> (left panel) lists the squares furthest above normal this month.</td></tr>
+          <tr><td>Anomalies against multi-year averages</td>
+            <td><a href="/#area=bbox%3A-107%2C25%2C-100%2C36&label=West+Texas+and+northern+Mexico%2C+Apr-Jul+2011&start=2011-04-01&end=2011-07-31&base=2003-2022&mode=harmonized&tab=calendar&cal=anomaly&gran=month&metric=count">Calendar "vs normal"</a>
+              and <b>Fire on the map → vs normal</b>; the summary gives % of median, z-scores are in the analytics CSV.</td></tr>
+          <tr><td>Number of fires detected (key figures)</td>
+            <td>The strip above the summary: hotspots in range, vs normal, busiest month and year, fire season.
+              <b>Measure</b> switches to fire power (MW).</td></tr>
+          <tr><td>Accessible color ramps that show similarities and differences across months</td>
+            <td>Viridis (counts) and purple–orange (vs normal), both colorblind-safe; legends with units; keyboard navigation;
+              data tables for screen readers. Automated accessibility audit (axe-core): no serious issues.</td></tr>
+          <tr><td>Download analytics and visualizations</td>
+            <td><b>Download</b> panel: daily analytics CSV, a one-page printable briefing; the ⤓ button on every chart saves a PNG.</td></tr>
+          <tr><td>A CSV of the hotspots detected during a search</td>
+            <td><b>Hotspots in this area (CSV)</b>, also GeoJSON and KML for GIS and Google Earth.</td></tr>
+          <tr><td>For early warning, emergency responders, scientists, land managers, firefighters</td>
+            <td>A plain-language summary for every search, the "unusual right now" list, shareable links for handing a view to a colleague, and a phone layout.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Data</h2>
+      <p>NASA FIRMS active fires: MODIS Collection 6.1 (Terra, Aqua) and VIIRS 375 m (S-NPP, NOAA-20, NOAA-21), plus MODIS
+        land cover (MCD12Q1). DOIs and limitations on <a href="/methods">How it works</a>.</p>
+    </article>
+  </main>
+  <footer class="site-footer methods"><p><a href="/">← Fire calendar</a></p></footer>
+</body>
+</html>

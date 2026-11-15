@@ -593,6 +593,8 @@
     state.area = area;
     state.areaLabel = label;
     state.presetIndex = presetIndex;
+    // on a phone the results sit below a long settings panel: jump to them after a choice
+    if (state.ready && window.innerWidth < 980) setTimeout(() => $("results").scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     document.querySelectorAll("#preset-buttons .preset").forEach((b, i) => b.setAttribute("aria-pressed", String(i === presetIndex)));
     runAll();
   }
@@ -788,6 +790,7 @@
         box.appendChild(b);
       });
       loadUnusual();
+      setTimeout(() => { state.ready = true; }, 0);   // later area choices are the user's
       const shared = readHash();
       if (shared) applyShared(shared);
       else if (presets.length) applyPreset(presets[0], 0);

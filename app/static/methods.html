@@ -25,6 +25,7 @@
       <a href="/">Fire calendar</a>
       <a href="/methods" aria-current="page">How it works</a>
       <a href="/checks">More checks</a>
+      <a href="/judges">For judges</a>
     </nav>
   </header>
 
@@ -40,6 +41,35 @@
   <script>
     // Opened as /methods.html directly? The content is filled in at /methods.
     if (document.getElementById("methods-content").children.length === 0) location.replace("/methods");
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    // Validation chart: monthly error per region, one global ratio vs FireBridge (from results/metrics.json)
+    (async () => {
+      const el = document.getElementById("val-chart");
+      if (!el) return;
+      const m = await fetch("/content/metrics.json").then((r) => r.json());
+      const names = { texas: "Texas", amazon: "Amazon", australia: "N. Australia" };
+      const regions = Object.keys(m.regions);
+      const labels = regions.flatMap((r) => [[names[r] || r, "test years"], [names[r] || r, "NOAA-20"]]);
+      const val = (r, test, method) => m.regions[r][test][method].rmse;
+      const series = (method) => regions.flatMap((r) => [val(r, "holdout", method), val(r, "transfer_noaa20", method)]);
+      Chart.defaults.font.family = "Inter, system-ui, sans-serif";
+      new Chart(el, {
+        type: "bar",
+        data: { labels, datasets: [
+          { label: "One global ratio", data: series("global_ratio"), backgroundColor: "#8fa3b8", borderRadius: 3 },
+          { label: "FireBridge (quantile mapping)", data: series("harmonized"), backgroundColor: "#c2410c", borderRadius: 3 },
+        ] },
+        options: {
+          maintainAspectRatio: false,
+          plugins: { legend: { position: "top", align: "start" },
+            tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${Math.round(c.raw).toLocaleString("en-US")} hotspots/month` } } },
+          scales: { y: { beginAtZero: true, title: { display: true, text: "RMSE, hotspots per month" } },
+                    x: { ticks: { maxRotation: 0, autoSkip: false, font: { size: 11 } } } },
+        },
+      });
+    })();
   </script>
 </body>
 </html>

@@ -1031,10 +1031,24 @@ def _methods_html():
         figs = "<h2>Validation figures</h2>" + figs
         marker = "<h2>Data sources</h2>"
         body = body.replace(marker, figs + marker, 1) if marker in body else body + figs
+    # validation chart (drawn in the browser from /content/metrics.json by methods.html)
+    cards += ('<figure class="val-chart"><div class="chart-box"><canvas id="val-chart" role="img" '
+              'aria-label="Typical monthly error by region: one global ratio versus FireBridge, on the test years '
+              'and on NOAA-20"></canvas></div><figcaption>Typical monthly error (RMSE, hotspots per month; lower is '
+              'better) on the test years and on NOAA-20, which was never used in fitting. Raw VIIRS is far off the '
+              'chart. Numbers in the tables below.</figcaption></figure>')
     # put the headline cards right after the page title
     first_h2 = body.find("<h2>")
     body = body[:first_h2] + cards + body[first_h2:] if first_h2 > 0 else cards + body
     return body
+
+
+@app.get("/judges", include_in_schema=False)
+def judges_page():
+    page = STATIC_DIR / "judges.html"
+    if not page.exists():
+        return JSONResponse(status_code=404, content={"error": "judges.html isn't built yet."})
+    return FileResponse(page)
 
 
 @app.get("/methods", include_in_schema=False)

@@ -266,3 +266,9 @@ def test_checks_page(client):
     from pathlib import Path
     if (Path(__file__).resolve().parent.parent / "results" / "extra" / "extra_checks.json").exists():
         assert r.text.count("<table") == 3 and "/extra-figures/drift_by_year.png" in r.text
+
+
+def test_judges_page(client):
+    r = client.get("/judges")
+    assert r.status_code == 200 and "Two-minute tour" in r.text
+    assert r.text.count('href="/#area=') >= 7
