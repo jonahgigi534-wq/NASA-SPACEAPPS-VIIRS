@@ -35,7 +35,7 @@ UPLOAD = [
     "app/__init__.py", "app/main.py", "app/analytics.py", "app/static/**",
     "pipeline/__init__.py", "pipeline/live.py",
     "docs/presets.json", "docs/methods_text.md",
-    "results/metrics.json", "results/figures/*.png", "results/extra/*.json", "results/extra/*.png",
+    "results/metrics.json", "results/static_cells.csv", "results/figures/*.png", "results/extra/*.json", "results/extra/*.png",
 ]
 
 SPACE_README = f"""---

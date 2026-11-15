@@ -1,0 +1,21 @@
+{
+ "rule": {
+  "min_static_share": 0.5,
+  "min_static_n": 10
+ },
+ "amazon": {
+  "cells": 27,
+  "static_detections_covered_pct": 24.33,
+  "fire_detections_lost_pct": 0.057
+ },
+ "australia": {
+  "cells": 117,
+  "static_detections_covered_pct": 64.31,
+  "fire_detections_lost_pct": 0.012
+ },
+ "texas": {
+  "cells": 139,
+  "static_detections_covered_pct": 89.37,
+  "fire_detections_lost_pct": 3.535
+ }
+}

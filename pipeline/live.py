@@ -247,10 +247,14 @@ def factor_for(factors, month):
 def static_cells(region):
     """Cells with static heat sources (gas flares, industry), if Track A saved them.
     NRT data has no 'type' column, so this is how non-fire hotspots are removed."""
-    p = REPO / "data" / "processed" / "static_cells.parquet"
-    if not p.exists():
+    shipped = REPO / "results" / "static_cells.csv"          # committed, deployed with the app
+    local = REPO / "data" / "processed" / "static_cells.parquet"  # pipeline output (not deployed)
+    if shipped.exists():
+        df = pd.read_csv(shipped)
+    elif local.exists():
+        df = pd.read_parquet(local)
+    else:
         return None
-    df = pd.read_parquet(p)
     return set(df.loc[df["region"] == region, "cell_id"].astype(int))
 
 

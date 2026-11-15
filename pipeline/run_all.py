@@ -22,6 +22,7 @@ APP_DIR = Path("data/app")
 # (name, module args, what it makes)
 STEPS = [
     ("ingest", ["pipeline.ingest"], "data/processed/fires_<region>_<sensor>.parquet"),
+    ("static", ["pipeline.static_cells"], "results/static_cells.csv (flare cells live.py drops)"),
     ("grid", ["pipeline.grid"], "grids + missing-data mask (data/processed/)"),
     ("overpass", ["pipeline.overpass"], "results/figures/overpass_times.png"),
     ("landcover", ["pipeline.landcover"], "data/processed/landcover_<region>.parquet"),
