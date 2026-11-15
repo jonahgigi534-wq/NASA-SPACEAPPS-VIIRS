@@ -5,7 +5,22 @@ image: when the container starts, the app downloads the 4 data files from our pu
 <https://huggingface.co/datasets/JonathanGigi/SPACEAPPS-DATA> and, if a FIRMS key is set,
 refreshes the live FIRMS feed in the background once an hour.
 
-## One command (recommended)
+## Azure Container Apps (what we use: Docker Spaces now need Hugging Face PRO)
+
+Same Dockerfile, built in Azure's cloud, so Docker doesn't have to run on your computer.
+
+1. Install the Azure CLI once: `winget install -e --id Microsoft.AzureCLI`, then open a new terminal.
+2. `az login` (sign in in the browser; with several subscriptions pick e.g. Azure for Students).
+3. Make sure `.env` has `FIRMS_MAP_KEY` (for the hourly live feed), then in the repo folder:
+   `python scripts/deploy_azure.py`
+4. It prints the site URL. `<url>/api/status` shows the data download (about 530 MB, a few
+   minutes); when it's done run `python scripts/check_site.py <url>`.
+5. After judging: `python scripts/deploy_azure.py --delete` removes everything and stops billing.
+
+Size: 1 vCPU / 2 GiB with one replica always on (the container uses about 1.1 GiB with the data
+loaded), so there's no cold start and the live refresh keeps running.
+
+## Hugging Face Space: one command
 
 1. Get a Hugging Face **write** token: huggingface.co → your avatar → **Settings** →
    **Access Tokens** → **Create new token** → type **Write** → copy it.
