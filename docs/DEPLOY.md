@@ -7,12 +7,17 @@ refreshes the live FIRMS feed in the background once an hour.
 
 ## Azure Container Apps (what we use: Docker Spaces now need Hugging Face PRO)
 
-Same Dockerfile, built in Azure's cloud, so Docker doesn't have to run on your computer.
+Same Dockerfile and file list as the Space. Live site:
+<https://firebridge.graycliff-49f97f4e.northcentralus.azurecontainerapps.io>
 
 1. Install the Azure CLI once: `winget install -e --id Microsoft.AzureCLI`, then open a new terminal.
 2. `az login` (sign in in the browser; with several subscriptions pick e.g. Azure for Students).
 3. Make sure `.env` has `FIRMS_MAP_KEY` (for the hourly live feed), then in the repo folder:
-   `python scripts/deploy_azure.py`
+   `python scripts/deploy_azure.py --local-build`
+   **Azure for Students** blocks cloud image builds (`TasksOperationsNotAllowed`), so
+   `--local-build` builds with Docker on your computer and pushes to the project's registry.
+   It also only allows a few regions (northcentralus, francecentral, norwayeast, denmarkeast,
+   belgiumcentral); the script uses northcentralus (`--location` to change).
 4. It prints the site URL. `<url>/api/status` shows the data download (about 530 MB, a few
    minutes); when it's done run `python scripts/check_site.py <url>`.
 5. After judging: `python scripts/deploy_azure.py --delete` removes everything and stops billing.
