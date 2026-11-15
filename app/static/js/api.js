@@ -28,7 +28,8 @@ const API = (() => {
 
   async function post(endpoint, body) {
     if (MOCK) {
-      const r = await fetch(`mock/${endpoint}.json`);
+      const weekly = endpoint === "calendar" && body && body.granularity === "week";
+      const r = await fetch(`mock/${weekly ? "calendar_week" : endpoint}.json`);
       return handle(r);
     }
     const r = await fetch(`${BASE}/api/${endpoint}`, {

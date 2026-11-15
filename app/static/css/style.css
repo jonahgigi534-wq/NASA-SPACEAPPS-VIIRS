@@ -198,3 +198,6 @@ input[type=number], input[type=date] { font: inherit; font-size: 14px; color: va
 .waking-card h2 { margin: 6px 0 8px; font-size: 20px; }
 .waking-bar { height: 8px; background: #ece9e4; border-radius: 99px; overflow: hidden; margin: 14px 0 8px; }
 .waking-bar span { display: block; height: 100%; width: 3%; background: var(--accent); transition: width .6s ease; }
+.trend { margin: 10px 0 0; font-weight: 600; }
+.trend.rising { color: #b3360b; }
+.trend.falling { color: #1d5fa8; }

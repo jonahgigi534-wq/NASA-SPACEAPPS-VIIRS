@@ -203,5 +203,77 @@ const CAL = (() => {
     legendKeys(lg, left, top + rows * ch + 40, hatchId);
   }
 
-  return { months, days };
+  // ---- week x year burning calendar ----------------------------------------------------------
+  // cells: /api/calendar week cells ("2011-W14"). Rows = years, columns = ISO weeks 1..53.
+  function weeks(container, cells, opts) {
+    container.innerHTML = "";
+    if (!cells.length) { container.textContent = "No data for this area."; return; }
+    const parse = (p) => [+p.slice(0, 4), +p.slice(6)];
+    const years = [...new Set(cells.map((c) => parse(c.period)[0]))].sort((a, b) => a - b);
+    const byKey = new Map(cells.map((c) => [c.period, c]));
+    const cw = 13, ch = 15, gap = 1.5, left = 42, top = 56;
+    const width = left + 53 * cw + 12, gridH = years.length * ch;
+    const max = d3.max(cells, (c) => (c.missing ? 0 : c.value || 0)) || 1;
+    const positive = cells.filter((c) => !c.missing && c.value > 0).map((c) => c.value).sort(d3.ascending);
+    const lo = positive.length ? d3.quantileSorted(positive, 0.05) : 0;
+    const scale = FMT.countScale(max, lo);
+    const hatchId = "hatch-" + Math.random().toString(36).slice(2);
+    const height = top + gridH + 90;
+    const svg = d3.select(container).append("svg").attr("id", "calendar-svg")
+      .attr("viewBox", `0 0 ${width} ${height}`).attr("width", width).attr("xmlns", NS)
+      .attr("font-family", FONT).attr("font-size", 10).attr("fill", FMT.ink)
+      .attr("role", "group").attr("aria-label", `Burning calendar by week: ${opts.units} per week, ${years[0]} to ${years[years.length - 1]}`);
+    hatchDefs(svg, hatchId);
+    svg.append("rect").attr("width", width).attr("height", height).attr("fill", "#fff");
+    svg.append("text").attr("x", left).attr("y", 16).attr("font-size", 13).attr("font-weight", 600).text(opts.title);
+    // month names over the week where each month starts (ISO weeks of a reference year)
+    FMT.MON.forEach((mName, i) => {
+      const w = FMT.isoWeekOf(new Date(Date.UTC(2025, i, 1)))[1];
+      svg.append("text").attr("x", left + (w - 1) * cw).attr("y", top - 8).attr("font-size", 10).text(mName);
+    });
+    svg.append("text").attr("x", left).attr("y", 33).attr("font-size", 10).attr("fill", "#5b6168").text("ISO week →");
+    years.forEach((y, i) => svg.append("text").attr("x", left - 6).attr("y", top + i * ch + ch / 2 + 3.5)
+      .attr("text-anchor", "end").attr("font-size", 9.5).text(y));
+
+    const rs = opts.range && opts.range[0], re = opts.range && opts.range[1];
+    const grid = svg.append("g");
+    years.forEach((y, yi) => {
+      for (let w = 1; w <= 53; w++) {
+        const key = `${y}-W${String(w).padStart(2, "0")}`;
+        const c = byKey.get(key);
+        if (!c) continue;
+        const x = left + (w - 1) * cw, yy = top + yi * ch;
+        const fill = c.missing ? FMT.MISSING
+          : opts.view === "anomaly" ? (FMT.anomalyColor(c.value, c.median) || FMT.MISSING) : scale(c.value || 0);
+        const range = FMT.weekRange(y, w);
+        const g = grid.append("g").attr("class", "cal-cell").attr("tabindex", 0).attr("role", "button")
+          .attr("data-x", w - 1).attr("data-y", yi).attr("data-period", key)
+          .attr("aria-label", `Week ${w} of ${y}, ${range}: ${describe(c, opts.units)}. Press Enter for days.`);
+        g.append("rect").attr("class", "cell").attr("x", x).attr("y", yy).attr("width", cw - gap)
+          .attr("height", ch - gap).attr("rx", 1.5).attr("fill", fill);
+        if (c.provisional && !c.missing) g.append("rect").attr("x", x).attr("y", yy).attr("width", cw - gap)
+          .attr("height", ch - gap).attr("fill", `url(#${hatchId})`).attr("pointer-events", "none");
+        g.on("click", () => opts.onPick(key))
+          .on("keydown", (ev) => onKey(ev, grid, key, opts))
+          .on("mousemove", (ev) => tooltip(`<b>Week ${w}, ${y}</b> (${range})<br>${describe(c, opts.units)}`, ev))
+          .on("mouseleave", () => tooltip(null));
+        if (rs && re) {
+          const mon = FMT.iso(FMT.isoMonday(y, w));
+          const sunD = FMT.isoMonday(y, w); sunD.setUTCDate(sunD.getUTCDate() + 6);
+          if (FMT.iso(sunD) >= rs && mon <= re) {
+            [["#111", 2.2], ["#fff", 0.8]].forEach(([color, sw]) => grid.append("rect")
+              .attr("x", x - 0.4).attr("y", yy - 0.4).attr("width", cw - gap + 0.8).attr("height", ch - gap + 0.8)
+              .attr("fill", "none").attr("stroke", color).attr("stroke-width", sw).attr("pointer-events", "none"));
+          }
+        }
+      }
+    });
+    const lg = svg.append("g").attr("font-size", 10.5);
+    const ly = top + gridH + 18;
+    if (opts.view === "anomaly") legendAnomaly(lg, left, ly, 220, "vs the median for that week");
+    else legendCounts(lg, left, ly, 220, scale, max, lo, opts.units + " per week");
+    legendKeys(lg, left, ly + 36, hatchId);
+  }
+
+  return { months, weeks, days };
 })();

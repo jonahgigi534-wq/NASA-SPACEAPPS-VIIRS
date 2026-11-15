@@ -31,6 +31,24 @@ const FMT = (() => {
     return `${MON[m - 1]} ${d}, ${y}`;
   };
   const iso = (d) => d.toISOString().slice(0, 10);
+  // ISO weeks (Monday to Sunday; week 1 holds January 4)
+  function isoMonday(year, week) {
+    const jan4 = new Date(Date.UTC(year, 0, 4));
+    const mon1 = new Date(jan4); mon1.setUTCDate(4 - ((jan4.getUTCDay() + 6) % 7));
+    const d = new Date(mon1); d.setUTCDate(mon1.getUTCDate() + (week - 1) * 7);
+    return d;
+  }
+  function isoWeekOf(d) {                     // Date -> [isoYear, week]
+    const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    t.setUTCDate(t.getUTCDate() + 3 - ((t.getUTCDay() + 6) % 7));   // Thursday of this week
+    const y = t.getUTCFullYear();
+    return [y, 1 + Math.round((t - isoMonday(y, 1)) / 6048e5 - 3 / 7)];
+  }
+  const weekRange = (year, week) => {        // "Apr 4 – Apr 10"
+    const m = isoMonday(year, week), s = new Date(m); s.setUTCDate(m.getUTCDate() + 6);
+    const f = (d) => `${MON[d.getUTCMonth()]} ${d.getUTCDate()}`;
+    return `${f(m)} – ${f(s)}`;
+  };
 
   // ---- colors (colorblind-safe) ----
   // counts: viridis on a log scale (log(1 + count)), so ordinary fire seasons stay visible
@@ -68,6 +86,7 @@ const FMT = (() => {
     return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? ink : "#fff";
   }
 
-  return { MONTHS, MON, int, pct, pctSub, monthLabel, mmdd, date, iso, countScale, countPos, countAt, anomalyColor,
+  return { MONTHS, MON, int, pct, pctSub, monthLabel, mmdd, date, iso, isoMonday, isoWeekOf, weekRange,
+           countScale, countPos, countAt, anomalyColor,
            MISSING, textOn, ink };
 })();

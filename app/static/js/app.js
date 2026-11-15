@@ -3,8 +3,8 @@
   const $ = (id) => document.getElementById(id);
   const state = {
     area: null, areaLabel: "", start: null, end: null, baseline: [2003, 2022],
-    mode: "harmonized", calview: "counts", tab: "calendar", dataStart: "2001-01-01", dataEnd: null,
-    calendarCells: [], presetIndex: null,
+    mode: "harmonized", calview: "counts", calgran: "month", tab: "calendar", dataStart: "2001-01-01", dataEnd: null,
+    calendarCells: [], weekCells: null, presetIndex: null,
   };
   const UNITS = { harmonized: "hotspots", modis_only: "MODIS hotspots", viirs_raw: "VIIRS hotspots" };
   const MODE_HINT = {
@@ -58,7 +58,7 @@
     if (!state.area) return;
     const p = new URLSearchParams({
       area: areaToText(state.area), label: state.areaLabel, start: state.start || "", end: state.end || "",
-      base: state.baseline.join("-"), mode: state.mode, tab: state.tab, cal: state.calview,
+      base: state.baseline.join("-"), mode: state.mode, tab: state.tab, cal: state.calview, gran: state.calgran,
     });
     history.replaceState(null, "", `${location.pathname}${location.search}#${p}`);
   }
@@ -76,6 +76,7 @@
       mode: UNITS[p.get("mode")] ? p.get("mode") : null,
       tab: TABS.includes(p.get("tab")) ? p.get("tab") : null,
       cal: ["counts", "anomaly"].includes(p.get("cal")) ? p.get("cal") : null,
+      gran: ["month", "week"].includes(p.get("gran")) ? p.get("gran") : null,
     };
   }
 
@@ -121,7 +122,8 @@
       renderSummary(summary);
       state.calendarCells = cal.cells;
       state.calUnits = cal.units;
-      renderCalendar();
+      state.weekCells = null;                   // weeks are fetched when shown
+      await renderCalendar();
       renderPatterns(patterns);
       await renderNow(current);
       CHARTS.longterm(ts, state.mode);
@@ -170,12 +172,49 @@
     $("summary-text").textContent = s.summary_text;
   }
 
-  function renderCalendar() {
-    CAL.months($("calendar"), state.calendarCells, {
+  async function renderCalendar() {
+    const weekly = state.calgran === "week";
+    $("calendar-title").textContent = weekly ? "Hotspots per week, 2001 → today" : "Hotspots per month, 2001 → today";
+    $("calendar-help").textContent = weekly
+      ? "Each square is one week (Monday to Sunday). Click (or press Enter on) a week to see its days."
+      : "Each square is one month. Click (or press Enter on) a month to see its days.";
+    if (!weekly) {
+      CAL.months($("calendar"), state.calendarCells, {
+        view: state.calview, units: units(), range: [state.start, state.end],
+        title: `${state.areaLabel}: ${state.calview === "anomaly" ? "each month vs its normal" : `${units()} per month`}`,
+        onPick: openMonth,
+      });
+      return;
+    }
+    if (!state.weekCells) {
+      busy(true);
+      try {
+        const r = await API.calendar(body({ start: state.dataStart, end: state.dataEnd, granularity: "week" }));
+        state.weekCells = r.cells;
+      } catch (e) { failed(e); return; } finally { busy(false); }
+    }
+    CAL.weeks($("calendar"), state.weekCells, {
       view: state.calview, units: units(), range: [state.start, state.end],
-      title: `${state.areaLabel}: ${state.calview === "anomaly" ? "each month vs its normal" : `${units()} per month`}`,
-      onPick: openMonth,
+      title: `${state.areaLabel}: ${state.calview === "anomaly" ? "each week vs its normal" : `${units()} per week`}`,
+      onPick: openWeek,
     });
+  }
+
+  async function openWeek(period) {
+    const y = +period.slice(0, 4), w = +period.slice(6);
+    const mon = FMT.isoMonday(y, w), sun = new Date(mon);
+    sun.setUTCDate(mon.getUTCDate() + 6);
+    const start = FMT.iso(mon) < state.dataStart ? state.dataStart : FMT.iso(mon);
+    const end = state.dataEnd && FMT.iso(sun) > state.dataEnd ? state.dataEnd : FMT.iso(sun);
+    busy(true);
+    try {
+      const r = await API.calendarDay(body({ start, end, granularity: "day" }));
+      $("daily-card").hidden = false;
+      const title = `Week ${w} of ${y} (${FMT.weekRange(y, w)}), day by day`;
+      $("daily-title").textContent = title;
+      CAL.days($("daily"), r.cells, { id: "daily-svg", title: `${state.areaLabel}: ${title}`, units: units() });
+      $("daily-card").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } catch (e) { failed(e); } finally { busy(false); }
   }
 
   async function openMonth(period) {
@@ -201,6 +240,10 @@
     $("season-text").textContent = fs
       ? `Fire season (shaded): ${FMT.mmdd(fs.start)} to ${FMT.mmdd(fs.end)}, peaking around ${FMT.mmdd(fs.peak)}; it holds ${Math.round(fs.share_of_year * 100)}% of a typical year's hotspots. Highest-risk months (orange): ${hr || "none"}.`
       : "Too few hotspots here to define a fire season.";
+    $("weeks-text").textContent = weeksText(p.high_risk_weeks || []);
+    const tr = p.trend, te = $("trend-text");
+    te.textContent = tr ? `Long-term trend: ${tr.text}` : "Long-term trend: too few complete years to judge.";
+    te.className = `trend ${tr ? tr.direction : ""}`;
     const top = p.years_ranked.slice(0, 3).map((r) => `${r.year} (${FMT.int(r.total)})`).join(", ");
     $("years-text").textContent = top ? `Busiest years: ${top}. Only complete years are ranked.` : "No complete years to rank.";
     const row = $("chance-row");
@@ -217,6 +260,24 @@
       d.innerHTML = `<b>${v == null ? "–" : v + "%"}</b>${FMT.MON[c.month - 1]}`;
       row.appendChild(d);
     });
+  }
+
+  // [10,11,12,20,21] -> "Mar 2 – Mar 22 and May 11 – May 24 (ISO weeks 10–12, 20–21)"
+  function weeksText(weeks) {
+    if (!weeks.length) return "";
+    const runs = [];
+    weeks.forEach((w) => {
+      const last = runs[runs.length - 1];
+      if (last && w === last[1] + 1) last[1] = w; else runs.push([w, w]);
+    });
+    const y = new Date().getUTCFullYear();
+    const dates = runs.map(([a, b]) => {
+      const s = FMT.weekRange(y, a).split(" – ")[0], e = FMT.weekRange(y, b).split(" – ")[1];
+      return `${s} – ${e}`;
+    });
+    const nums = runs.map(([a, b]) => (a === b ? `${a}` : `${a}–${b}`)).join(", ");
+    const list = dates.length > 1 ? `${dates.slice(0, -1).join(", ")} and ${dates.at(-1)}` : dates[0];
+    return `Highest-risk weeks: ${list} (ISO weeks ${nums}; dates for ${y}).`;
   }
 
   async function renderNow(cur) {
@@ -346,6 +407,12 @@
       renderCalendar();
       writeHash();
     }));
+    document.querySelectorAll('input[name="calgran"]').forEach((r) => r.addEventListener("change", () => {
+      state.calgran = r.value;
+      $("daily-card").hidden = true;
+      renderCalendar();
+      writeHash();
+    }));
 
     // tabs (arrow keys move between them, as in the ARIA tabs pattern)
     tabEls = [...document.querySelectorAll('[role="tab"]')];
@@ -397,6 +464,7 @@
     if (v.baseline) { state.baseline = v.baseline; $("base0").value = v.baseline[0]; $("base1").value = v.baseline[1]; }
     if (v.mode) { state.mode = v.mode; document.querySelector(`input[name="mode"][value="${v.mode}"]`).checked = true; $("mode-hint").textContent = MODE_HINT[v.mode]; }
     if (v.cal) { state.calview = v.cal; document.querySelector(`input[name="calview"][value="${v.cal}"]`).checked = true; }
+    if (v.gran) { state.calgran = v.gran; document.querySelector(`input[name="calgran"][value="${v.gran}"]`).checked = true; }
     if (v.tab) selectTab(v.tab);
     setDates(v.start || `${state.dataEnd.slice(0, 4)}-01-01`, v.end || state.dataEnd);
     MAP.show(v.area);
