@@ -155,6 +155,12 @@ overlap everywhere from 2012, but it means a new region must be fitted, not borr
 - **Fire intensity (FRP) uses one simple conversion** and was not separately validated.
 - **Missing days are shown as gaps, never as zero.** A satellite-day counts as missing when it
   reports nothing while the other satellites say there should be at least 10 hotspots.
+  We checked this rule against FIRMS's official outage list (the "More checks" page). It catches
+  about half of the 83 days when one MODIS satellite was down (46 in the Amazon, 48 in Australia,
+  45 in Texas): on those days the other MODIS satellite still reports, so nothing looks missing
+  and the day is counted a little low. It also flags days FIRMS doesn't list (35, 57 and 116),
+  mostly days when MODIS saw no fire while the more sensitive VIIRS saw small ones. Those flags
+  only affect the "MODIS only" view; the harmonized record from 2012 on is built from VIIRS.
 - The "overall" R² looks very high partly because the three regions differ so much in size; the
   per-region numbers are the fairer test.
 - The Texas study box is a rectangle, so it also covers parts of New Mexico and northern Mexico.
