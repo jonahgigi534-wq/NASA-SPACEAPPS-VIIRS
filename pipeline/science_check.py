@@ -75,21 +75,45 @@ def api_client(url: str | None):
 
 class Expected:
     def __init__(self, app_dir: Path = APP):
+        """Same inputs as app/main.py: the main files, plus the live FIRMS files (if present)
+        for days after each region's main end, so a deployed site with a live feed checks out."""
         self.con = duckdb.connect()
-        self.cells = (app_dir / "cells_daily.parquet").as_posix()
-        self.missing = self.con.execute(
-            f"SELECT region, date, scope FROM "
-            f"read_parquet('{(app_dir / 'missing_days.parquet').as_posix()}')").df()
-        self.missing["date"] = pd.to_datetime(self.missing["date"])
+        self.con.execute("SET TimeZone = 'UTC'")
+        main = (app_dir / "cells_daily.parquet").as_posix()
+        main_end = dict(self.con.execute(
+            f"SELECT region, max(date) FROM read_parquet('{main}') GROUP BY region").fetchall())
         self.cov = json.loads((app_dir / "coverage.json").read_text())
-        last = self.con.execute(f"SELECT max(date) FROM read_parquet('{self.cells}')").fetchone()[0]
-        self.end = max([last] + [date.fromisoformat(c["live_end"]) for c in self.cov.values()])
+        live_cells = app_dir / "live_cells_daily.parquet"
+        live_hot = app_dir / "live_hotspots.parquet"
+        live_cov = app_dir / "live_coverage.json"
+        live_miss = app_dir / "live_missing_days.parquet"
+        self.live_end = {}
+        cols = "region, lat, lon, date, mec, modis_n, viirs_n"
+        cells_sql = f"SELECT {cols} FROM read_parquet('{main}')"
+        miss_sql = (f"SELECT region, date, scope FROM "
+                    f"read_parquet('{(app_dir / 'missing_days.parquet').as_posix()}')")
+        if main_end and live_cells.exists() and live_hot.exists():
+            after = " OR ".join(f"(region = '{r}' AND date > DATE '{e}')" for r, e in main_end.items())
+            cells_sql += (f" UNION ALL SELECT {cols} FROM "
+                          f"read_parquet('{live_cells.as_posix()}') WHERE {after}")
+            if live_cov.exists():
+                self.live_end = {r: date.fromisoformat(v["live_end"])
+                                 for r, v in json.loads(live_cov.read_text()).items()}
+        if self.live_end and live_miss.exists():
+            miss_sql += f" UNION ALL SELECT region, date, scope FROM read_parquet('{live_miss.as_posix()}')"
+        self.con.execute(f"CREATE TABLE cells AS {cells_sql}")
+        self.cells = "cells"
+        self.missing = self.con.execute(miss_sql).df()
+        self.missing["date"] = pd.to_datetime(self.missing["date"])
+        last = self.con.execute("SELECT max(date) FROM cells").fetchone()[0]
+        self.end = max([last] + [date.fromisoformat(c["live_end"]) for c in self.cov.values()]
+                       + list(self.live_end.values()))
 
     def series(self, region: str, bbox: list, mode: str = "harmonized") -> pd.Series:
         col = {"harmonized": "mec", "modis_only": "modis_n", "viirs_raw": "viirs_n"}[mode]
         w, s, e, n = bbox
         d = self.con.execute(f"""
-            SELECT date, sum({col}) AS v FROM read_parquet('{self.cells}')
+            SELECT date, sum({col}) AS v FROM {self.cells}
             WHERE region = ? AND lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?
             GROUP BY date""", [region, s, n, w, e]).df()
         idx = pd.date_range(self.cov[region]["start"], self.end, freq="D")
@@ -334,8 +358,10 @@ def data_dir_from(arg: str | None) -> Path:
     return path
 
 
-def same_data_or_stop(get, ex: Expected, data_dir: Path) -> None:
-    """Stop unless the app serves the data we compute from (region list, start, archive_end)."""
+def same_data_or_stop(get, ex: Expected, data_dir: Path) -> date:
+    """Stop unless the app serves the data we compute from (region list, start, archive_end).
+    Returns the app's latest live_end, so checks of "today" can be skipped when the site's live
+    feed has days our local copy doesn't."""
     r = get("/api/regions")
     if r.status_code != 200:
         raise SystemExit(f"/api/regions -> HTTP {r.status_code}; is the app running with data?")
@@ -349,6 +375,7 @@ def same_data_or_stop(get, ex: Expected, data_dir: Path) -> None:
         raise SystemExit("The app is serving different data than " + str(data_dir) + ":\n  "
                          + "\n  ".join(diffs) + "\nPoint --data-dir (or APP_DATA_DIR) at the "
                          "folder the app uses, then rerun. Nothing was compared.")
+    return max(date.fromisoformat(x["live_end"]) for x in app_regions.values())
 
 
 def main(argv=None) -> None:
@@ -359,7 +386,11 @@ def main(argv=None) -> None:
     data_dir = data_dir_from(args.data_dir)
     post, get = api_client(args.url)
     ex, rep = Expected(data_dir), Report()
-    same_data_or_stop(get, ex, data_dir)
+    app_end = same_data_or_stop(get, ex, data_dir)
+    check_today = app_end <= ex.end
+    if not check_today:
+        print(f"Skipping /api/current without as_of: the app's live feed reaches {app_end}, "
+              f"{data_dir} only {ex.end} (copy the app's live_* files there to check it).")
     presets = pick_presets()
 
     def guarded(fn, *a):
@@ -374,7 +405,8 @@ def main(argv=None) -> None:
         s = ex.series(p["region"], p["bbox"])
         guarded(check_summary, rep, post, ex, p, s)
         guarded(check_calendar, rep, post, ex, p, s)
-        guarded(check_current, rep, post, ex, p, s, None)
+        if check_today:
+            guarded(check_current, rep, post, ex, p, s, None)
         guarded(check_current, rep, post, ex, p, s, date.fromisoformat(p["end"]))
     for p in presets:
         guarded(check_missing, rep, post, ex, [p])
