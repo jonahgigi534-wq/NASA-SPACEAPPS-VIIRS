@@ -3,7 +3,7 @@
   const $ = (id) => document.getElementById(id);
   const state = {
     area: null, areaLabel: "", start: null, end: null, baseline: [2003, 2022],
-    mode: "harmonized", calview: "counts", calgran: "month", tab: "calendar", dataStart: "2001-01-01", dataEnd: null,
+    mode: "harmonized", metric: "count", calview: "counts", calgran: "month", tab: "calendar", dataStart: "2001-01-01", dataEnd: null,
     calendarCells: [], weekCells: null, presetIndex: null,
   };
   const UNITS = { harmonized: "hotspots", modis_only: "MODIS hotspots", viirs_raw: "VIIRS hotspots" };
@@ -31,10 +31,10 @@
   }
   function body(extra = {}) {
     return { area: state.area, start: state.start, end: state.end, baseline: state.baseline,
-             mode: state.mode, metric: "count", ...extra };
+             mode: state.mode, metric: state.metric, ...extra };
   }
   function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
-  const units = () => UNITS[state.mode];
+  const units = () => (state.metric === "frp" ? "MW of fire power" : UNITS[state.mode]);
 
   // ---------------------------------------------------------------- shareable links
   // The whole view lives in the address (#area=…&start=…), so a link reopens exactly this view.
@@ -58,7 +58,7 @@
     if (!state.area) return;
     const p = new URLSearchParams({
       area: areaToText(state.area), label: state.areaLabel, start: state.start || "", end: state.end || "",
-      base: state.baseline.join("-"), mode: state.mode, tab: state.tab, cal: state.calview, gran: state.calgran,
+      base: state.baseline.join("-"), mode: state.mode, tab: state.tab, cal: state.calview, gran: state.calgran, metric: state.metric,
     });
     history.replaceState(null, "", `${location.pathname}${location.search}#${p}`);
   }
@@ -77,6 +77,7 @@
       tab: TABS.includes(p.get("tab")) ? p.get("tab") : null,
       cal: ["counts", "anomaly"].includes(p.get("cal")) ? p.get("cal") : null,
       gran: ["month", "week"].includes(p.get("gran")) ? p.get("gran") : null,
+      metric: ["count", "frp"].includes(p.get("metric")) ? p.get("metric") : null,
     };
   }
 
@@ -126,7 +127,7 @@
       await renderCalendar();
       renderPatterns(patterns);
       await renderNow(current);
-      CHARTS.longterm(ts, state.mode);
+      CHARTS.longterm(ts, state.mode, state.metric === "frp" ? "MW of fire power per month" : "hotspots per month");
       $("daily-card").hidden = true;
     } catch (e) {
       if (id === runId) failed(e);
@@ -157,7 +158,9 @@
     const days = Math.round((Date.parse(s.range.end) - Date.parse(s.range.start)) / 864e5) + 1;
     const allMissing = s.missing_days >= days;
     $("kf-total").textContent = allMissing ? "No data" : FMT.int(k.total_hotspots);
+    $("kf-total-label").textContent = state.metric === "frp" ? "Fire power in range" : "Hotspots in range";
     $("kf-total-sub").textContent = allMissing ? "no satellite data for these dates"
+      : state.metric === "frp" ? "MW, summed (MODIS scale)"
       : state.mode === "harmonized" ? "MODIS-scale hotspots" : units();
     $("kf-pct").textContent = FMT.pct(k.pct_of_median);
     $("kf-pct").classList.toggle("hot", k.pct_of_median >= 150);
@@ -318,6 +321,87 @@
     } catch (_) { /* optional extra: skip quietly */ }
   }
 
+  // ---------------------------------------------------------------- measure (count / FRP)
+  function setMetric(metric, rerun = true) {
+    state.metric = metric;
+    document.querySelector(`input[name="metric"][value="${metric}"]`).checked = true;
+    const frp = metric === "frp";
+    document.querySelectorAll('input[name="mode"]').forEach((r) => {
+      r.disabled = frp && r.value !== "harmonized";
+      r.parentElement.title = r.disabled ? "Fire power is only available for the harmonized record" : "";
+    });
+    if (frp && state.mode !== "harmonized") {
+      state.mode = "harmonized";
+      document.querySelector('input[name="mode"][value="harmonized"]').checked = true;
+      $("mode-hint").textContent = MODE_HINT.harmonized;
+    }
+    if (rerun) runAll();
+  }
+
+  // ---------------------------------------------------------------- place search
+  let lastSearch = 0;
+  async function findPlace(q) {
+    const list = $("place-results");
+    if (!q) { list.hidden = true; return; }
+    const wait = 1100 - (Date.now() - lastSearch);          // Nominatim: at most 1 request/second
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    lastSearch = Date.now();
+    list.innerHTML = "<li class='credit'>Searching…</li>";
+    list.hidden = false;
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=en&q=${encodeURIComponent(q)}`;
+      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      const places = res.ok ? await res.json() : [];
+      list.innerHTML = "";
+      if (!places.length) list.innerHTML = "<li class='credit'>No place found. Try a town or county name.</li>";
+      places.forEach((pl) => {
+        const li = document.createElement("li");
+        const b = document.createElement("button");
+        b.type = "button";
+        const short = pl.display_name.split(",").slice(0, 3).join(",").trim();
+        b.textContent = `${short} — analyze 50 km around it`;
+        b.addEventListener("click", () => {
+          const area = { type: "point", lat: +(+pl.lat).toFixed(4), lon: +(+pl.lon).toFixed(4), radius_km: 50 };
+          list.hidden = true;
+          MAP.show(area);
+          setArea(area, `50 km around ${pl.display_name.split(",")[0]}`);
+        });
+        li.appendChild(b);
+        list.appendChild(li);
+      });
+      const credit = document.createElement("li");
+      credit.className = "credit";
+      credit.innerHTML = 'Search by <a href="https://nominatim.openstreetmap.org/" target="_blank" rel="noopener">OpenStreetMap Nominatim</a>';
+      list.appendChild(credit);
+    } catch (_) {
+      list.innerHTML = "<li class='credit'>Place search is unavailable right now; draw on the map instead.</li>";
+    }
+  }
+
+  // ---------------------------------------------------------------- one-page briefing
+  let briefingHidden = null;
+  function prepareBriefing() {
+    document.body.classList.add("briefing");
+    $("print-meta").textContent = `FireBridge briefing · printed ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })} · ${location.href}`;
+    // both tabs on the page: a chart in a hidden tab was drawn at zero size and would print blank
+    briefingHidden = ["panel-calendar", "panel-now"].map((id) => [id, $(id).hidden]);
+    briefingHidden.forEach(([id]) => { $(id).hidden = false; });
+    // draw charts at once (no animation) so the printed page never catches them half-drawn
+    Object.values(CHARTS.charts).forEach((c) => { c.options.animation = false; c.resize(); c.update("none"); });
+  }
+  function endBriefing() {
+    document.body.classList.remove("briefing");
+    if (briefingHidden) briefingHidden.forEach(([id, h]) => { $(id).hidden = h; });
+    briefingHidden = null;
+    Object.values(CHARTS.charts).forEach((c) => c.resize());
+  }
+  window.FireBridgeBriefing = { prepare: prepareBriefing, end: endBriefing };   // used by scripts/check_site.py
+  function printBriefing() {
+    prepareBriefing();
+    window.addEventListener("afterprint", endBriefing, { once: true });
+    setTimeout(() => window.print(), 250);
+  }
+
   // ---------------------------------------------------------------- choosing an area
   function setArea(area, label, presetIndex = null) {
     state.area = area;
@@ -427,6 +511,17 @@
       });
     });
 
+    // measure: hotspot count or fire power (FRP exists only for the harmonized record)
+    document.querySelectorAll('input[name="metric"]').forEach((r) => r.addEventListener("change", () => setMetric(r.value)));
+
+    // place search (OpenStreetMap Nominatim: one request per search, never while typing)
+    $("place-form").addEventListener("submit", (e) => { e.preventDefault(); findPlace($("place-q").value.trim()); });
+
+    // more downloads + briefing
+    $("dl-geojson").addEventListener("click", () => download("export/hotspots.geojson", "firebridge_hotspots.geojson", $("dl-geojson")));
+    $("dl-kml").addEventListener("click", () => download("export/hotspots.kml", "firebridge_hotspots.kml", $("dl-kml")));
+    $("print-briefing").addEventListener("click", printBriefing);
+
     // shareable link
     $("copy-link").addEventListener("click", async () => {
       writeHash();
@@ -464,6 +559,7 @@
     if (v.baseline) { state.baseline = v.baseline; $("base0").value = v.baseline[0]; $("base1").value = v.baseline[1]; }
     if (v.mode) { state.mode = v.mode; document.querySelector(`input[name="mode"][value="${v.mode}"]`).checked = true; $("mode-hint").textContent = MODE_HINT[v.mode]; }
     if (v.cal) { state.calview = v.cal; document.querySelector(`input[name="calview"][value="${v.cal}"]`).checked = true; }
+    if (v.metric) setMetric(v.metric, false);
     if (v.gran) { state.calgran = v.gran; document.querySelector(`input[name="calgran"][value="${v.gran}"]`).checked = true; }
     if (v.tab) selectTab(v.tab);
     setDates(v.start || `${state.dataEnd.slice(0, 4)}-01-01`, v.end || state.dataEnd);

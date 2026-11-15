@@ -149,11 +149,62 @@ with sync_playwright() as p:
     csvdl("#dl-hotspots", ["lat", "lon", "datetime_utc", "satellite", "sensor", "frp", "confidence", "daynight", "provisional", "weight"], "hotspots")
     csvdl("#dl-series", ["date", "value", "median", "mean", "std", "z", "pct_of_median", "source_sensor", "provisional_flag", "missing_flag"], "analytics")
 
+    # ---- GeoJSON / KML, shareable link, weeks, fire power, place search, briefing ------------
+    for btn, label, magic in [("#dl-geojson", "GeoJSON", b'{"type":"FeatureCollection"'), ("#dl-kml", "KML", b"<?xml")]:
+        with page.expect_download(timeout=60000) as d:
+            page.click(btn)
+        data = Path(d.value.path()).read_bytes()
+        ok(f"{label} hotspots", data.startswith(magic) and len(data) > 1000, f"{d.value.suggested_filename}, {len(data) // 1024} KB")
+    link = page.url
+    ok("shareable link in the address", "#area=" in link)
+    page.check("input[name=calgran][value=week]", force=True); wait_idle(page)
+    ok("weekly calendar", page.locator("#calendar .cal-cell").count() > 1000, str(page.locator("#calendar .cal-cell").count()))
+    page.check("input[name=calgran][value=month]", force=True); wait_idle(page)
+    page.click("#tab-patterns"); page.wait_for_timeout(300)
+    ok("high-risk weeks + trend", page.inner_text("#weeks-text").startswith("Highest-risk weeks")
+       and page.inner_text("#trend-text").startswith("Long-term trend"), page.inner_text("#trend-text")[:80])
+    page.click("#tab-calendar")
+    page.check("input[name=metric][value=frp]", force=True); wait_idle(page)
+    ok("fire power (FRP) measure", "fire power" in page.inner_text("#kf-total-label").lower()
+       and page.is_disabled("input[name=mode][value=viirs_raw]"), page.inner_text("#kf-total"))
+    page.check("input[name=metric][value=count]", force=True); wait_idle(page)
+    p2 = ctx.new_page()
+    p2.goto(link)
+    p2.wait_for_function("document.getElementById('kf-total').textContent !== '–'", timeout=30000)
+    p2.wait_for_timeout(800)
+    ok("shareable link reopens the same view", p2.inner_text("#area-label") == area_label(page), p2.inner_text("#area-label"))
+    p2.close()
+    page.fill("#place-q", "Lubbock, Texas"); page.click("#place-form button")
+    try:
+        page.wait_for_selector("#place-results li button", timeout=15000)
+        page.locator("#place-results li button").first.click(); wait_idle(page)
+        ok("place search (OpenStreetMap)", area_label(page).startswith("50 km around"), area_label(page))
+    except Exception as ex:
+        ok("place search (OpenStreetMap)", False, f"no results: {ex}"[:120])
+    # the briefing as a real PDF (US Letter), the way the browser prints it: must be one page
+    page.evaluate("window.FireBridgeBriefing.prepare()")
+    page.wait_for_timeout(300)
+    pdf = page.pdf(format="Letter", print_background=True)
+    (SHOTS / "08_briefing.pdf").write_bytes(pdf)
+    page.evaluate("window.FireBridgeBriefing.end()")
+    pages = pdf.count(b"/Type /Page") - pdf.count(b"/Type /Pages")
+    ok("briefing prints on one page", pages == 1, f"{pages} page(s), {len(pdf) // 1024} KB")
+
+    # ---- accessibility audit (axe-core): no serious or critical problems ----------------------
+    def axe(pg, label):
+        pg.add_script_tag(url="https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.10.2/axe.min.js")
+        v = pg.evaluate("async () => (await axe.run(document, {resultTypes: ['violations']})).violations"
+                        ".filter(x => ['serious', 'critical'].includes(x.impact))"
+                        ".map(x => x.id + ' (' + x.nodes.length + ')')")
+        ok(f"accessibility audit: {label}", not v, ", ".join(v)[:200])
+    axe(page, "main page")
+
     # ---- methods page, mock mode, phone ------------------------------------------------------
     page.click("text=How it works"); page.wait_for_load_state("networkidle")
     ok("methods page", page.locator("table").count() >= 3 and page.locator("figure img").count() == 6,
        page.title())
     page.screenshot(path=SHOTS / "06_methods.png", full_page=False)
+    axe(page, "methods page")
     page.goto(BASE + "/?mock=1")
     page.wait_for_function("document.getElementById('kf-total').textContent !== '–'", timeout=20000)
     ok("mock mode (?mock=1)", page.is_visible("#mock-banner"))

@@ -42,11 +42,18 @@
     </div>
   </div>
 
+  <p id="print-meta" class="print-only"></p>
   <main class="layout">
     <!-- ================= LEFT: choose area + settings ================= -->
     <section class="panel controls" aria-labelledby="controls-title">
       <h2 id="controls-title" class="panel-title">1. Choose an area</h2>
 
+      <form id="place-form" class="place-form" role="search" aria-label="Find a place">
+        <label class="sr-only" for="place-q">Find a place</label>
+        <input id="place-q" type="search" placeholder="Find a place (town, park, county)…" autocomplete="off">
+        <button type="submit" class="btn">Find</button>
+      </form>
+      <ul id="place-results" class="place-results" hidden></ul>
       <div id="map" class="map" role="application" aria-label="Map. Draw a rectangle, polygon or circle to choose an area. The outlined boxes are the regions we have data for."></div>
       <p class="hint">Draw a <strong>rectangle</strong>, <strong>polygon</strong> or <strong>circle</strong> with the tools on the map, or type coordinates below. Outlined boxes show where we have data.</p>
 
@@ -103,12 +110,25 @@
           </div>
           <p class="hint" id="mode-hint">Harmonized: VIIRS translated to the MODIS scale, so 2001–today is one consistent series.</p>
         </div>
+        <div class="mode" role="radiogroup" aria-labelledby="metric-label">
+          <span id="metric-label" class="mini-title">Measure</span>
+          <div class="segmented">
+            <label><input type="radio" name="metric" value="count" checked><span>Hotspot count</span></label>
+            <label><input type="radio" name="metric" value="frp"><span>Fire power (MW)</span></label>
+          </div>
+          <p class="hint" id="metric-hint">Fire power (FRP) measures how intense fires were, not just how many. Harmonized record only.</p>
+        </div>
       </div>
 
       <h2 class="panel-title">3. Download</h2>
       <div class="downloads">
         <button type="button" class="btn" id="dl-hotspots">Hotspots in this area (CSV)</button>
         <button type="button" class="btn" id="dl-series">Daily analytics table (CSV)</button>
+        <div class="dl-row">
+          <button type="button" class="btn" id="dl-geojson" title="For QGIS, ArcGIS and web maps">Hotspots as GeoJSON</button>
+          <button type="button" class="btn" id="dl-kml" title="Opens in Google Earth">Hotspots as KML</button>
+        </div>
+        <button type="button" class="btn" id="print-briefing">Print a one-page briefing</button>
       </div>
       <p class="hint">Charts download as PNG with the <span aria-hidden="true">⤓</span> button on each chart.</p>
     </section>
@@ -124,7 +144,7 @@
       </div>
 
       <div id="key-figures" class="key-figures" aria-live="polite">
-        <div class="kf"><span class="kf-label">Hotspots in range</span><span class="kf-value" id="kf-total">–</span><span class="kf-sub" id="kf-total-sub"></span></div>
+        <div class="kf"><span class="kf-label" id="kf-total-label">Hotspots in range</span><span class="kf-value" id="kf-total">–</span><span class="kf-sub" id="kf-total-sub"></span></div>
         <div class="kf"><span class="kf-label">vs normal</span><span class="kf-value" id="kf-pct">–</span><span class="kf-sub" id="kf-pct-sub">of the median</span></div>
         <div class="kf"><span class="kf-label">Busiest month</span><span class="kf-value" id="kf-month">–</span><span class="kf-sub">in range</span></div>
         <div class="kf"><span class="kf-label">Busiest year</span><span class="kf-value" id="kf-year">–</span><span class="kf-sub" id="kf-year-sub"></span></div>

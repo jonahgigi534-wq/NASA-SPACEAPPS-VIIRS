@@ -51,7 +51,31 @@ const CHARTS = (() => {
   function make(id, config) {
     if (charts[id]) charts[id].destroy();
     charts[id] = new Chart(document.getElementById(id), config);
+    srTable(id);
     return charts[id];
+  }
+
+  // A hidden data table after each chart, so screen-reader users get the numbers too.
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  function srTable(id) {
+    const ch = charts[id], canvas = document.getElementById(id);
+    let t = document.getElementById(`${id}-table`);
+    if (!t) {
+      // the wrapper is visually hidden (a table itself ignores the 1px width and would widen the page)
+      const wrap = document.createElement("div");
+      wrap.className = "sr-only";
+      t = document.createElement("table");
+      t.id = `${id}-table`;
+      wrap.appendChild(t);
+      canvas.parentElement.after(wrap);
+    }
+    const ds = ch.data.datasets.filter((d) => d.data.some((v) => v != null));
+    const title = (ch.options.plugins.title && ch.options.plugins.title.text) || canvas.getAttribute("aria-label");
+    const cell = (v) => (v == null ? "no data" : Math.round(v).toLocaleString("en-US"));
+    t.innerHTML = `<caption>${esc(title)} (data table)</caption><thead><tr><th scope="col">Period</th>` +
+      ds.map((d) => `<th scope="col">${esc(d.label || "value")}</th>`).join("") + "</tr></thead><tbody>" +
+      ch.data.labels.map((l, i) => `<tr><th scope="row">${esc(l)}</th>${ds.map((d) => `<td>${cell(d.data[i])}</td>`).join("")}</tr>`).join("") +
+      "</tbody>";
   }
   const axisTitle = (text) => ({ display: true, text, font: { size: 12 } });
   const titlePlugin = (text) => ({ display: true, text, align: "start", font: { size: 13, weight: "600" }, padding: { bottom: 8 } });
@@ -119,7 +143,7 @@ const CHARTS = (() => {
     });
   }
 
-  function longterm(ts, mode) {
+  function longterm(ts, mode, yTitle = "hotspots per month") {
     const labels = ts.series.map((r) => r.month);
     const idx = (iso) => labels.indexOf(iso.slice(0, 7));
     const ds = (key, label, color, dash) => ({
@@ -132,11 +156,11 @@ const CHARTS = (() => {
         ds("viirs_raw", "Raw VIIRS (not harmonized)", C.viirs),
         ds("modis_only", "MODIS only (reference)", C.modis, [3, 3]),
         ds("harmonized", "Harmonized (MODIS scale)", C.harmonized),
-      ] },
+      ].filter((d) => d.data.some((v) => v != null)) },
       options: {
         interaction: { mode: "index", intersect: false },
         plugins: {
-          title: titlePlugin("Hotspots per month, 2001 → today"),
+          title: titlePlugin(`${yTitle[0].toUpperCase()}${yTitle.slice(1)}, 2001 → today`),
           legend: { position: "top", align: "start", labels: { boxWidth: 18 } },
           vlines: { lines: ts.sensor_switches.map((s) => ({ index: idx(s.date), label: s.label })).filter((l) => l.index >= 0) },
           tooltip: { callbacks: { title: (it) => FMT.monthLabel(it[0].label),
@@ -145,7 +169,7 @@ const CHARTS = (() => {
         scales: {
           x: { ticks: { callback: (v, i) => labels[i].endsWith("-01") && +labels[i].slice(0, 4) % 2 === 1 ? labels[i].slice(0, 4) : "",
                         autoSkip: false, maxRotation: 0 }, grid: { display: false } },
-          y: { beginAtZero: true, title: axisTitle("hotspots per month"), grid: { color: C.grid } },
+          y: { beginAtZero: true, title: axisTitle(yTitle), grid: { color: C.grid } },
         },
       },
     });
