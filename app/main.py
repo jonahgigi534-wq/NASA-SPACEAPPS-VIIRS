@@ -420,7 +420,7 @@ class Query(BaseModel):
     baseline: Optional[List[int]] = None
     mode: Literal["harmonized", "modis_only", "viirs_raw"] = "harmonized"
     metric: Literal["count", "frp"] = "count"
-    granularity: Optional[Literal["day", "month"]] = None
+    granularity: Optional[Literal["day", "week", "month"]] = None
     as_of: Optional[date] = None      # /api/current: compare a past month instead of this one
 
 

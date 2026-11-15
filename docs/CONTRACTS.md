@@ -114,7 +114,7 @@ Example responses (C builds the UI from these; B must match them). Copies live i
  "provisional_days": 0, "missing_days": 2}
 ```
 
-`POST /api/calendar` (granularity `month` or `day`)
+`POST /api/calendar` (granularity `month`, `week` or `day`; a week is an ISO week, Monday to Sunday, period like `"2011-W14"`)
 ```json
 {"granularity": "month", "mode": "harmonized", "metric": "count", "units": "hotspots (MODIS scale)",
  "cells": [{"period": "2011-04", "value": 6120.5, "median": 1400, "mean": 1650, "std": 900,
@@ -128,8 +128,14 @@ Example responses (C builds the UI from these; B must match them). Copies live i
  "years_ranked": [{"year": 2011, "total": 18432, "rank": 1}],
  "fire_season": {"start": "02-01", "peak": "03-15", "end": "04-30", "share_of_year": 0.8},
  "high_risk_months": [2, 3, 4],
- "chance_unusual_month": [{"month": 1, "pct_years_above_normal": 15}]}
+ "high_risk_weeks": [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+ "chance_unusual_month": [{"month": 1, "pct_years_above_normal": 15}],
+ "trend": {"years": [2001, 2025], "slope_per_year": 42.5, "pct_per_decade": 21.3, "p_value": 0.012,
+           "direction": "rising", "text": "Rising: about +21% per decade over 2001–2025 (Mann-Kendall p = 0.012)."}}
 ```
+`high_risk_weeks` = ISO week numbers, the top 20% (11 of 52) by typical activity. `trend` is
+Theil–Sen slope + Mann–Kendall test on complete-year totals; `direction` is `none` when
+p ≥ 0.05; `trend` is `null` with fewer than 8 complete years.
 
 `POST /api/current`
 ```json

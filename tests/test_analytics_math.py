@@ -246,3 +246,36 @@ def test_polygon_with_too_many_corners_is_refused():
     ring.append(ring[0])
     with pytest.raises(an.AreaError, match="too many corners"):
         an.parse_area({"type": "polygon", "coordinates": [ring]})
+
+
+# ---- weeks and trend ---------------------------------------------------------------------------
+
+def test_weekly_totals_and_high_risk_weeks():
+    s = daily("2003-01-06", "2012-12-30", 1.0)          # starts on a Monday
+    iso = s.index.isocalendar()
+    s[(iso["week"] >= 10) & (iso["week"] <= 20)] = 9.0   # a spring fire season, weeks 10-20
+    wt = an.weekly_table(s)
+    assert wt.loc[200310, "value"] == pytest.approx(63.0) and wt.loc[200310, "full"]
+    hr = an.high_risk_weeks(an.weekly_climatology(wt, (2003, 2012)))
+    assert hr == list(range(10, 21))
+
+
+def test_week_calendar_cells():
+    s = daily("2003-01-06", "2012-12-30", 2.0)
+    rows = an.calendar_cells(s, "week", date(2011, 4, 4), date(2011, 4, 17), (2003, 2012),
+                             lambda a, b: "MODIS", date(2030, 1, 1))
+    assert [r["period"] for r in rows] == ["2011-W14", "2011-W15"]
+    assert rows[0]["value"] == 14.0 and rows[0]["pct_of_median"] == 100
+
+
+def test_trend_rising_and_flat():
+    idx = pd.date_range("2001-01-01", "2020-12-31", freq="D")
+    rising = pd.Series((idx.year - 2000).astype(float), index=idx)   # grows every year
+    t = an.trend(an.monthly_table(rising))
+    assert t["direction"] == "rising" and t["pct_per_decade"] > 0 and t["p_value"] < 0.05
+    rng = np.random.default_rng(1)
+    flat = pd.Series(rng.normal(5, 0.5, len(idx)).clip(0), index=idx)
+    t2 = an.trend(an.monthly_table(flat))
+    assert t2["direction"] == "none" and "No clear trend" in t2["text"]
+    short = an.monthly_table(rising.loc["2015":"2020"])
+    assert an.trend(short) is None

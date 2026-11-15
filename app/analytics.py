@@ -334,6 +334,37 @@ def monthly_climatology(mt, baseline):
     return pd.DataFrame(rows).set_index("month")
 
 
+def weekly_table(s):
+    """One row per ISO week (Monday to Sunday), keyed iso_year * 100 + week: value (total,
+    gap-filled if <= 20% missing, else NaN), days in the series, missing days, first day."""
+    iso = s.index.isocalendar()
+    key = (iso["year"].astype(int) * 100 + iso["week"].astype(int)).to_numpy()
+    g = s.groupby(key)
+    n = g.size()
+    n_nan = s.isna().groupby(key).sum()
+    mean = g.mean()
+    first = pd.Series(s.index, index=s.index).groupby(key).min()
+    value = np.where(n_nan / n > MAX_MISSING_SHARE, np.nan, mean * n)
+    t = pd.DataFrame({"value": value, "n_days": n, "n_missing": n_nan, "first": first})
+    t["iso_year"] = t.index // 100
+    t["week"] = t.index % 100
+    t["monday"] = t["first"] - pd.to_timedelta(t["first"].dt.weekday, unit="D")
+    t["full"] = t["n_days"] == 7
+    return t
+
+
+def weekly_climatology(wt, baseline):
+    """Normal total for each ISO week number (1..53) across the baseline years."""
+    y0, y1 = baseline
+    b = wt[(wt["iso_year"] >= y0) & (wt["iso_year"] <= y1) & wt["full"]]
+    rows = []
+    for w in range(1, 54):
+        v = b.loc[b["week"] == w, "value"].to_numpy(dtype=float)
+        mean, median, std = _nanstats(v, axis=0) if len(v) else (np.nan, np.nan, np.nan)
+        rows.append({"week": w, "mean": float(mean), "median": float(median), "std": float(std)})
+    return pd.DataFrame(rows).set_index("week")
+
+
 def anomaly(value, median, mean, std):
     """z-score and % of median for one value (None when they can't be computed)."""
     ok = value is not None and not _isnan(value)
@@ -381,6 +412,48 @@ def high_risk_months(mclim, share=HIGH_RISK_SHARE):
         return []
     top = m.sort_values(["median", "mean"], ascending=False).head(k)
     return sorted(int(i) for i in top.index)
+
+
+def high_risk_weeks(wclim, share=HIGH_RISK_SHARE):
+    """The top 20% of ISO weeks (11 of 52) by typical (median) activity, in calendar order."""
+    k = math.ceil(52 * share)
+    w = wclim.loc[1:52]
+    w = w[(w["median"].fillna(0) > 0) | (w["mean"].fillna(0) > 0)]
+    if w.empty:
+        return []
+    return sorted(int(i) for i in w.sort_values(["median", "mean"], ascending=False).head(k).index)
+
+
+MIN_TREND_YEARS = 8
+
+
+def trend(mt):
+    """Long-term trend of complete-year totals: Theil-Sen slope (robust to single extreme years)
+    and a Mann-Kendall test (Kendall's tau against the year). Returns None with < 8 years."""
+    from scipy import stats
+    yr = sorted(years_ranked(mt), key=lambda r: r["year"])
+    if len(yr) < MIN_TREND_YEARS:
+        return None
+    years = np.array([r["year"] for r in yr], dtype=float)
+    totals = np.array([r["total"] for r in yr], dtype=float)
+    typical = float(np.median(totals))
+    if typical <= 0:
+        return None
+    slope = float(stats.theilslopes(totals, years)[0])
+    tau, p = stats.kendalltau(years, totals)
+    p = float(p) if not _isnan(p) else 1.0
+    pct = slope * 10 / typical * 100
+    span = f"{int(years[0])}–{int(years[-1])}"
+    if p < 0.05:
+        direction = "rising" if slope > 0 else "falling"
+        text = (f"{direction.capitalize()}: about {pct:+.0f}% per decade over {span} "
+                f"(Mann-Kendall p = {p:.3f}).")
+    else:
+        direction = "none"
+        text = f"No clear trend in yearly totals over {span} (Mann-Kendall p = {p:.2f})."
+    return {"years": [int(years[0]), int(years[-1])], "slope_per_year": round(slope, 1),
+            "pct_per_decade": round(pct, 1), "p_value": round(p, 4), "direction": direction,
+            "text": text}
 
 
 def years_ranked(mt):
@@ -551,6 +624,30 @@ def calendar_cells(s, granularity, start, end, baseline, source_of, provisional_
                          "source": source_of(d, d)})
         return rows
 
+    if granularity == "week":
+        wt = weekly_table(s)
+        wclim = weekly_climatology(wt, baseline)
+        last_key = wt.index[-1]
+        sel = wt[(wt["monday"] + pd.Timedelta(days=6) >= start) & (wt["monday"] <= end)]
+        for key, row in sel.iterrows():
+            monday, sunday = row["monday"], row["monday"] + pd.Timedelta(days=6)
+            if key == last_key and not row["full"]:
+                # week still in progress: the same days in other years
+                vals = list(same_window_values(s, monday, s.index[-1], baseline_years(baseline)).values())
+                med = float(np.median(vals)) if vals else np.nan
+                mean = float(np.mean(vals)) if vals else np.nan
+                std = float(np.std(vals, ddof=1)) if len(vals) >= 2 else np.nan
+            else:
+                med, mean, std = (wclim.loc[int(row["week"]), k] for k in ("median", "mean", "std"))
+            v = row["value"]
+            z, pct = anomaly(v, med, mean, std)
+            rows.append({"period": f"{int(row['iso_year'])}-W{int(row['week']):02d}",
+                         "value": r1(v), "median": r1(med), "mean": r1(mean), "std": r1(std),
+                         "z": r2(z), "pct_of_median": rint(pct), "missing": bool(np.isnan(v)),
+                         "provisional": bool(sunday.date() > provisional_after),
+                         "source": source_of(monday, sunday)})
+        return rows
+
     mt = monthly_table(s)
     mclim = monthly_climatology(mt, baseline)
     last = mt.index[-1]
@@ -591,7 +688,9 @@ def patterns(s, baseline, provisional_after):
         "years_ranked": [{**y, "total": r1(y["total"])} for y in years_ranked(mt)],
         "fire_season": fire_season(clim["mean"].to_numpy()),
         "high_risk_months": high_risk_months(mclim),
+        "high_risk_weeks": high_risk_weeks(weekly_climatology(weekly_table(s), baseline)),
         "chance_unusual_month": chance_unusual_month(mt, mclim, baseline),
+        "trend": trend(mt),
     }
 
 
