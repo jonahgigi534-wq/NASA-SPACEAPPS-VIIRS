@@ -215,3 +215,21 @@ def test_geojson_cap_note(client, monkeypatch):
     monkeypatch.setattr(main, "HOTSPOT_ROW_CAP", 5)
     fc = json.loads(client.post("/api/export/hotspots.geojson", json=TEXAS_2011).text)
     assert len(fc["features"]) == 5 and "Only the first 5" in fc["note"]
+
+
+def test_map_cells_add_up_to_the_summary(client):
+    body = {**TEXAS_2011, "start": "2011-04-01", "end": "2011-04-30"}
+    r = client.post("/api/cells", json=body)
+    assert r.status_code == 200, r.text
+    cells = r.json()["cells"]
+    assert cells and {"lat", "lon", "value", "median"} <= set(cells[0])
+    total = client.post("/api/summary", json=body).json()["key_figures"]["total_hotspots"]
+    # map cells sum the same cells as the summary (missing days aside: none in this window)
+    assert sum(c["value"] for c in cells) == pytest.approx(total, abs=max(2, 0.01 * total))
+    assert all(c["value"] >= 0 and c["median"] >= 0 for c in cells)
+
+
+def test_map_cells_timing(client):
+    t = time.perf_counter()
+    r = client.post("/api/cells", json={**TEXAS_2011, "area": TEXAS_WHOLE, "start": "2019-01-01", "end": "2019-12-31"})
+    assert r.status_code == 200 and time.perf_counter() - t < 2.0

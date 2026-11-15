@@ -149,6 +149,15 @@ with sync_playwright() as p:
     csvdl("#dl-hotspots", ["lat", "lon", "datetime_utc", "satellite", "sensor", "frp", "confidence", "daynight", "provisional", "weight"], "hotspots")
     csvdl("#dl-series", ["date", "value", "median", "mean", "std", "z", "pct_of_median", "source_sensor", "provisional_flag", "missing_flag"], "analytics")
 
+    # ---- fire on the map ----------------------------------------------------------------------
+    page.wait_for_function("document.querySelector('.map-legend') && document.querySelector('.map-legend').style.display !== 'none'", timeout=15000)
+    ok("fire on the map (legend + layer)", page.locator(".leaflet-overlay-pane canvas").count() >= 1,
+       page.inner_text(".map-legend")[:60])
+    page.evaluate("const s = document.getElementById('map-month'); s.value = '1'; s.dispatchEvent(new Event('input'))")
+    page.wait_for_timeout(1500)
+    ok("map month slider", page.inner_text("#map-month-label") != "All selected dates", page.inner_text("#map-month-label"))
+    page.evaluate("const s = document.getElementById('map-month'); s.value = '0'; s.dispatchEvent(new Event('input'))")
+
     # ---- GeoJSON / KML, shareable link, weeks, fire power, place search, briefing ------------
     for btn, label, magic in [("#dl-geojson", "GeoJSON", b'{"type":"FeatureCollection"'), ("#dl-kml", "KML", b"<?xml")]:
         with page.expect_download(timeout=60000) as d:

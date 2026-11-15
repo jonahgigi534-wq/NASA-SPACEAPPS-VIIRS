@@ -151,6 +151,17 @@ p ≥ 0.05; `trend` is `null` with fewer than 8 complete years.
                      {"date": "2018-04-01", "label": "NOAA-20 starts"}]}
 ```
 
+`POST /api/cells` (fire on the map; added Nov 14): per 0.1° cell in the area, the total for the
+date range and the median for the same calendar dates over the baseline years (a year with no
+detections in that cell counts as 0). Busiest 20,000 cells at most.
+```
+{"cells": [{"lat": 31.0, "lon": -98.0, "value": 120.5, "median": 14.0}], "cell_deg": 0.1,
+ "units": "hotspots (MODIS scale)", "baseline": [2003, 2022], "baseline_years_used": 20, "truncated": false}
+```
+
+`POST /api/export/hotspots.geojson` and `/api/export/hotspots.kml` (added Nov 14): the same points as
+the hotspots CSV, as a GeoJSON FeatureCollection or KML placemarks.
+
 `POST /api/export/series.csv`: columns `date,value,median,mean,std,z,pct_of_median,source_sensor,provisional_flag,missing_flag`
 
 `POST /api/export/hotspots.csv`: columns `lat,lon,datetime_utc,satellite,sensor,frp,confidence,daynight,provisional,weight`.

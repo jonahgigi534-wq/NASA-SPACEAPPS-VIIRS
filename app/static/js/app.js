@@ -4,7 +4,7 @@
   const state = {
     area: null, areaLabel: "", start: null, end: null, baseline: [2003, 2022],
     mode: "harmonized", metric: "count", calview: "counts", calgran: "month", tab: "calendar", dataStart: "2001-01-01", dataEnd: null,
-    calendarCells: [], weekCells: null, presetIndex: null,
+    calendarCells: [], weekCells: null, presetIndex: null, mapview: "counts",
   };
   const UNITS = { harmonized: "hotspots", modis_only: "MODIS hotspots", viirs_raw: "VIIRS hotspots" };
   const MODE_HINT = {
@@ -121,6 +121,8 @@
       ]);
       if (id !== runId) return;                 // a newer request has started
       renderSummary(summary);
+      resetMapMonths();
+      refreshMap();
       state.calendarCells = cal.cells;
       state.calUnits = cal.units;
       state.weekCells = null;                   // weeks are fetched when shown
@@ -143,6 +145,8 @@
     busy(true);
     try {
       renderSummary(await API.summary(body()));
+      resetMapMonths();
+      refreshMap();
       renderCalendar();
     } catch (e) { failed(e); } finally { busy(false); }
   }
@@ -402,6 +406,76 @@
     setTimeout(() => window.print(), 250);
   }
 
+  // ---------------------------------------------------------------- fire on the map
+  const mapCache = new Map();
+  let mapMonths = [], playTimer = null, mapReq = 0;
+  function resetMapMonths() {
+    mapMonths = [];
+    if (state.start && state.end) {
+      let d = new Date(state.start.slice(0, 7) + "-01T00:00:00Z");
+      const last = state.end.slice(0, 7);
+      while (FMT.iso(d).slice(0, 7) <= last && mapMonths.length < 400) {
+        mapMonths.push(FMT.iso(d).slice(0, 7));
+        d.setUTCMonth(d.getUTCMonth() + 1);
+      }
+    }
+    const slider = $("map-month");
+    slider.max = String(mapMonths.length);
+    slider.value = "0";
+    stopPlay();
+    $("map-month-label").textContent = "All selected dates";
+  }
+  async function refreshMap() {
+    if (!state.area) return;
+    const view = state.mapview;
+    if (view === "off") { MAP.showCells(null, "off"); return; }
+    const i = +$("map-month").value;
+    let start = state.start, end = state.end, caption = "All selected dates";
+    if (i > 0 && mapMonths[i - 1]) {
+      const m = mapMonths[i - 1];
+      const monthEnd = FMT.iso(new Date(Date.UTC(+m.slice(0, 4), +m.slice(5, 7), 0)));
+      start = `${m}-01` < state.start ? state.start : `${m}-01`;
+      end = monthEnd > state.end ? state.end : monthEnd;
+      caption = FMT.monthLabel(m);
+    }
+    $("map-month-label").textContent = caption;
+    const b = body({ start, end });
+    const key = JSON.stringify(b);
+    const id = ++mapReq;
+    try {
+      let data = mapCache.get(key);
+      if (!data) {
+        data = await API.cells(b);
+        mapCache.set(key, data);
+        if (mapCache.size > 200) mapCache.delete(mapCache.keys().next().value);
+      }
+      if (id !== mapReq) return;                      // a newer month was asked for meanwhile
+      MAP.showCells(data, view, units(), `${caption}: ${view === "anomaly" ? "vs normal" : units()}`);
+    } catch (_) { /* the map layer is an extra; the analyses still show */ }
+  }
+  function stopPlay() {
+    if (playTimer) clearInterval(playTimer);
+    playTimer = null;
+    $("map-play").textContent = "▶";
+    $("map-play").setAttribute("aria-label", "Play the selected dates month by month");
+  }
+  function togglePlay() {
+    if (playTimer) { stopPlay(); return; }
+    if (!mapMonths.length) return;
+    const slider = $("map-month");
+    if (+slider.value >= mapMonths.length) slider.value = "0";
+    $("map-play").textContent = "⏸";
+    $("map-play").setAttribute("aria-label", "Pause");
+    const step = () => {
+      const next = +slider.value + 1;
+      if (next > mapMonths.length) { stopPlay(); return; }
+      slider.value = String(next);
+      refreshMap();
+    };
+    step();
+    playTimer = setInterval(step, 1200);
+  }
+
   // ---------------------------------------------------------------- choosing an area
   function setArea(area, label, presetIndex = null) {
     state.area = area;
@@ -521,6 +595,14 @@
     $("dl-geojson").addEventListener("click", () => download("export/hotspots.geojson", "firebridge_hotspots.geojson", $("dl-geojson")));
     $("dl-kml").addEventListener("click", () => download("export/hotspots.kml", "firebridge_hotspots.kml", $("dl-kml")));
     $("print-briefing").addEventListener("click", printBriefing);
+
+    // fire on the map
+    document.querySelectorAll('input[name="mapview"]').forEach((r) => r.addEventListener("change", () => {
+      state.mapview = r.value;
+      refreshMap();
+    }));
+    $("map-month").addEventListener("input", debounce(() => { stopPlay(); refreshMap(); }, 120));
+    $("map-play").addEventListener("click", togglePlay);
 
     // shareable link
     $("copy-link").addEventListener("click", async () => {

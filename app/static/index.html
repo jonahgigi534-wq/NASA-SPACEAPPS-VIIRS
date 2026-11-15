@@ -55,6 +55,21 @@
       </form>
       <ul id="place-results" class="place-results" hidden></ul>
       <div id="map" class="map" role="application" aria-label="Map. Draw a rectangle, polygon or circle to choose an area. The outlined boxes are the regions we have data for."></div>
+      <div class="map-tools" role="group" aria-labelledby="mapview-label">
+        <div class="map-tools-row">
+          <span id="mapview-label" class="mini-title">Fire on the map</span>
+          <div class="segmented small" role="radiogroup" aria-labelledby="mapview-label">
+            <label><input type="radio" name="mapview" value="off"><span>Off</span></label>
+            <label><input type="radio" name="mapview" value="counts" checked><span>Hotspots</span></label>
+            <label><input type="radio" name="mapview" value="anomaly"><span>vs normal</span></label>
+          </div>
+        </div>
+        <div class="map-tools-row map-time">
+          <button type="button" class="icon-btn" id="map-play" aria-label="Play the selected dates month by month" title="Play month by month">▶</button>
+          <input type="range" id="map-month" min="0" max="0" value="0" step="1" aria-label="Month shown on the map (0 = all selected dates)">
+          <span id="map-month-label" class="map-month-label">All selected dates</span>
+        </div>
+      </div>
       <p class="hint">Draw a <strong>rectangle</strong>, <strong>polygon</strong> or <strong>circle</strong> with the tools on the map, or type coordinates below. Outlined boxes show where we have data.</p>
 
       <div class="presets" role="group" aria-labelledby="presets-title">

@@ -41,7 +41,7 @@ const API = (() => {
   // POST that returns a CSV file: save it with the server's file name.
   async function downloadCSV(endpoint, body, fallbackName) {
     let r;
-    if (MOCK) r = await fetch(`mock/${endpoint.replace("export/", "").replace(".csv", "")}.csv`);
+    if (MOCK) r = await fetch(`mock/${endpoint.replace("export/", "")}`);   // mock/hotspots.csv, .geojson, .kml, series.csv
     else r = await fetch(`${BASE}/api/${endpoint}`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
@@ -72,5 +72,6 @@ const API = (() => {
     patterns: (b) => post("patterns", b),
     current: (b) => post("current", b),
     timeseries: (b) => post("timeseries", b),
+    cells: (b) => post("cells", b),
   };
 })();

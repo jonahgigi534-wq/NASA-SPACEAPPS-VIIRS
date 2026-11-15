@@ -653,6 +653,61 @@ def current(q: Query):
     return clean(an.current(c.series(), as_of, c.baseline, c.provisional_after, c.unit_word))
 
 
+MAP_CELL_CAP = 20_000
+
+
+@app.post("/api/cells")
+def map_cells(q: Query):
+    """Fire on the map: per 0.1 degree cell in the area, the total for the date range and the
+    'normal' for the same calendar dates (median over the baseline years, a year with no
+    detections in that cell counting as 0). Not in the original contract (added for the map)."""
+    c = ctx_for(q)
+    start, end = c.date_range()
+    if (end - start).days > 366 * 26:
+        raise ApiError("Pick a shorter date range for the map.")
+    col = "mefrp" if (q.mode == "harmonized" and q.metric == "frp") else MODE_COLUMN[q.mode]
+    sel = c.sel[["region", "cell_id", "lat", "lon"]]
+    if sel.empty:
+        return {"cells": [], "cell_deg": an.CELL_DEG, "units": c.units, "baseline": c.baseline,
+                "truncated": False}
+    length = end - start
+    windows = []
+    for y in an.baseline_years(c.baseline):          # the same calendar window in each baseline year
+        sy = pd.Timestamp(an._shift_year(pd.Timestamp(start), y))
+        windows.append({"year": y, "ws": sy.date(), "we": (sy + length).date()})
+    cur = c.store.con.cursor()
+    try:
+        cur.register("sel", sel[["region", "cell_id"]])
+        now = cur.execute(
+            f"SELECT c.region, c.cell_id, sum({col}) AS value FROM cells c JOIN sel s "
+            "ON c.region = s.region AND c.cell_id = s.cell_id "
+            "WHERE c.date BETWEEN ? AND ? GROUP BY 1, 2", [start, end]).df()
+        cur.register("win", pd.DataFrame(windows))
+        past = cur.execute(
+            f"SELECT c.region, c.cell_id, w.year, sum({col}) AS value FROM cells c JOIN sel s "
+            "ON c.region = s.region AND c.cell_id = s.cell_id "
+            "JOIN win w ON c.date BETWEEN w.ws AND w.we GROUP BY 1, 2, 3").df()
+    finally:
+        cur.close()
+    years = len(windows)
+    if len(past):
+        wide = past.pivot_table(index=["region", "cell_id"], columns="year", values="value",
+                                aggfunc="sum").reindex(columns=[w["year"] for w in windows]).fillna(0)
+        med = wide.median(axis=1).rename("median").reset_index()
+    else:
+        med = pd.DataFrame(columns=["region", "cell_id", "median"])
+    out = sel.merge(now, on=["region", "cell_id"], how="left").merge(med, on=["region", "cell_id"], how="left")
+    out[["value", "median"]] = out[["value", "median"]].fillna(0)
+    out = out[(out["value"] > 0) | (out["median"] > 0)]
+    truncated = len(out) > MAP_CELL_CAP
+    out = out.sort_values("value", ascending=False).head(MAP_CELL_CAP)
+    cells = [{"lat": round(float(r.lat), 2), "lon": round(float(r.lon), 2),
+              "value": round(float(r.value), 1), "median": round(float(r.median), 1)}
+             for r in out.itertuples(index=False)]
+    return {"cells": cells, "cell_deg": an.CELL_DEG, "units": c.units, "baseline": c.baseline,
+            "baseline_years_used": years, "truncated": truncated}
+
+
 @app.post("/api/timeseries")
 def timeseries(q: Query):
     """Monthly totals 2001 -> now in all three modes, to show the 2012 jump disappear."""

@@ -186,17 +186,5 @@ lat,lon,datetime_utc,satellite,sensor,frp,confidence,daynight,provisional,weight
 34.8582,-104.8863,2011-04-01T20:53:00Z,Aqua,MODIS,67.5,nominal,D,false,1.0
 34.8428,-104.8851,2011-04-01T20:53:00Z,Aqua,MODIS,215.3,high,D,false,1.0
 34.8448,-104.8484,2011-04-01T20:53:00Z,Aqua,MODIS,87.4,nominal,D,false,1.0
-27.6304,-102.25,2011-04-02T04:37:00Z,Terra,MODIS,39.2,high,N,false,1.0
-28.497,-102.5781,2011-04-02T04:37:00Z,Terra,MODIS,15.1,nominal,N,false,1.0
-28.4812,-102.5963,2011-04-02T04:37:00Z,Terra,MODIS,91.5,high,N,false,1.0
-28.4852,-102.5757,2011-04-02T04:37:00Z,Terra,MODIS,125.6,high,N,false,1.0
-28.4164,-102.5131,2011-04-02T04:37:00Z,Terra,MODIS,20.0,nominal,N,false,1.0
-28.4194,-102.497,2011-04-02T04:37:00Z,Terra,MODIS,16.3,nominal,N,false,1.0
-28.4227,-102.4799,2011-04-02T04:37:00Z,Terra,MODIS,69.3,high,N,false,1.0
-28.4112,-102.4767,2011-04-02T04:37:00Z,Terra,MODIS,57.1,high,N,false,1.0
-28.393,-102.508,2011-04-02T04:37:00Z,Terra,MODIS,38.8,nominal,N,false,1.0
-28.3962,-102.4911,2011-04-02T04:37:00Z,Terra,MODIS,69.5,high,N,false,1.0
-28.4029,-102.4563,2011-04-02T04:37:00Z,Terra,MODIS,69.8,high,N,false,1.0
-28.3846,-102.4881,2011-04-02T04:37:00Z,Terra,MODIS,19.8,nominal,N,false,1.0
-28.4047,-102.4698,2011-04-02T04:37:00Z,Terra,MODIS,19.0,nominal,N,false,1.0
+
 # Sample: first 200 rows only.
