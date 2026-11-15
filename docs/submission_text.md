@@ -26,14 +26,20 @@ month against 1,212 for one global ratio, with a bias of −0.88% (raw VIIRS: +6
 a satellite never used in fitting, the error is 882 against 1,206. We report where it struggles
 (the Amazon, slightly high in Texas) and why.
 
-**The web application.** Users draw a rectangle, polygon or circle, or type coordinates, and
-pick dates. They get key figures and a plain-language summary; a month-by-year burning
-calendar from 2001 to today with accessible, colorblind-safe color ramps (counts or anomaly vs
-normal); the months that see the most fire, the fire season and high-risk months; the busiest
-years; and the current month compared with the median for the same days, using live FIRMS data.
-Missing satellite data is shown as missing, never as zero fire. Everything can be downloaded:
-the hotspots in the search as CSV, the analytics table as CSV, and every chart as PNG. A toggle
-shows the raw MODIS and raw VIIRS records, so anyone can see the 2012 jump disappear.
+**The web application.** Users draw a rectangle, polygon or circle, type coordinates or search a
+place name, and pick dates. They get key figures and a plain-language summary; a month-by-year
+(or week-by-year) burning calendar from 2001 to today with accessible, colorblind-safe color
+ramps (counts or anomaly vs normal); fire on the map, replayable month by month; the months and
+weeks that see the most fire, the fire season and the long-term trend; the busiest years; and
+the current month compared with the median for the same days, using live FIRMS data refreshed
+hourly. To answer "how a current fire compares with previous ones", hotspots are grouped into
+fire clusters and the latest is ranked against every cluster since 2001 (in northern New Mexico
+the largest is the 2022 Hermits Peak / Calf Canyon fire). An "unusual right now" list points to
+the places furthest above normal this month. Missing satellite data is shown as missing, never as
+zero fire. Everything can be downloaded: the hotspots in the search as CSV, GeoJSON or KML, the
+analytics table, every chart as PNG, and a one-page printable briefing; any view can be shared as
+a link. A toggle shows the raw MODIS and raw VIIRS records, so anyone can see the 2012 jump
+disappear. Judges can follow a two-minute tour of every brief item at /judges on the site.
 
 **Who it's for.** Early-warning and emergency responders, firefighters, land managers and
 scientists who need to know quickly whether this season is unusual, when fire is most likely,
