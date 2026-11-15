@@ -46,86 +46,108 @@
 
   <p id="print-meta" class="print-only"></p>
   <main class="layout">
-    <!-- ================= LEFT: choose area + settings ================= -->
-    <section class="panel controls" aria-labelledby="controls-title">
-      <h2 id="controls-title" class="panel-title">1. Choose an area</h2>
+    <!-- ================= HERO: full-screen map with floating controls ================= -->
+    <section class="hero" aria-label="Fire map">
+      <div class="hero-map">
+        <div id="map" class="map" role="application" aria-label="Map. Draw a rectangle, polygon or circle to choose an area. The outlined boxes are the regions we have data for."></div>
 
-      <form id="place-form" class="place-form" role="search" aria-label="Find a place">
-        <label class="sr-only" for="place-q">Find a place</label>
-        <input id="place-q" type="search" placeholder="Find a place (town, park, county)…" autocomplete="off">
-        <button type="submit" class="btn">Find</button>
-      </form>
-      <ul id="place-results" class="place-results" hidden></ul>
-      <div id="map" class="map" role="application" aria-label="Map. Draw a rectangle, polygon or circle to choose an area. The outlined boxes are the regions we have data for."></div>
-      <div class="map-tools" role="group" aria-labelledby="mapview-label">
-        <div class="map-tools-row">
-          <span id="mapview-label" class="mini-title">Fire on the map</span>
-          <div class="segmented small" role="radiogroup" aria-labelledby="mapview-label">
-            <label><input type="radio" name="mapview" value="off"><span>Off</span></label>
-            <label><input type="radio" name="mapview" value="counts" checked><span>Hotspots</span></label>
-            <label><input type="radio" name="mapview" value="anomaly"><span>vs normal</span></label>
+        <div class="hero-top">
+          <div class="pill-row">
+            <a class="pill pill-menu" href="#settings"><span aria-hidden="true">☰</span> Dates &amp; settings</a>
+            <span id="mapview-label" class="sr-only">Fire on the map</span>
+            <div class="segmented pills" role="radiogroup" aria-labelledby="mapview-label">
+              <label><input type="radio" name="mapview" value="counts" checked><span>Hotspots</span></label>
+              <label><input type="radio" name="mapview" value="anomaly"><span>vs normal</span></label>
+              <label><input type="radio" name="mapview" value="off"><span>Off</span></label>
+            </div>
+            <div class="quick-dates" role="group" aria-label="Quick date ranges">
+              <button type="button" class="chip pill" data-range="12m">Last 12 months</button>
+              <button type="button" class="chip pill" data-range="ytd">This year</button>
+              <button type="button" class="chip pill" data-range="all">Whole record</button>
+            </div>
+          </div>
+          <div class="hero-search">
+            <form id="place-form" class="place-form" role="search" aria-label="Find a place">
+              <label class="sr-only" for="place-q">Find a place</label>
+              <input id="place-q" type="search" placeholder="Find a place (town, park, county)…" autocomplete="off">
+              <button type="submit" class="btn">Find</button>
+            </form>
+            <ul id="place-results" class="place-results" hidden></ul>
           </div>
         </div>
-        <div class="map-tools-row map-time">
-          <button type="button" class="icon-btn" id="map-play" aria-label="Play the selected dates month by month" title="Play month by month">▶</button>
+
+        <!-- floating timeline: play the selected dates month by month -->
+        <div class="timeline" role="group" aria-label="Fire on the map through time">
+          <p class="tl-area" id="tl-area" aria-hidden="true">Loading…</p>
+          <p class="tl-stats" id="tl-stats" aria-hidden="true">&nbsp;</p>
+          <div class="tl-row">
+            <button type="button" class="icon-btn tl-play" id="map-play" aria-label="Play the selected dates month by month" title="Play month by month">▶</button>
+            <span id="map-month-label" class="map-month-label">All selected dates</span>
+            <button type="button" class="tl-speed" id="map-speed" aria-label="Playback speed" title="Playback speed">1x</button>
+          </div>
           <input type="range" id="map-month" min="0" max="0" value="0" step="1" aria-label="Month shown on the map (0 = all selected dates)">
-          <span id="map-month-label" class="map-month-label">All selected dates</span>
+          <div class="tl-ticks" aria-hidden="true"><span id="tl-from"></span><span id="tl-to"></span></div>
+          <a class="tl-more" href="#results">Full analysis <span aria-hidden="true">↓</span></a>
         </div>
       </div>
-      <p class="hint">Draw a <strong>rectangle</strong>, <strong>polygon</strong> or <strong>circle</strong> with the tools on the map, or type coordinates below. Outlined boxes show where we have data.</p>
 
-      <div class="presets" role="group" aria-labelledby="presets-title">
-        <h3 id="presets-title" class="mini-title">Big fire events (from the data)</h3>
-        <div id="preset-buttons" class="preset-buttons"></div>
+      <!-- right rail: events to jump to -->
+      <aside class="rail" aria-label="Fire events">
+        <div class="presets" role="group" aria-labelledby="presets-title">
+          <h2 id="presets-title" class="rail-title">Big fire events</h2>
+          <div id="preset-buttons" class="preset-buttons"></div>
+        </div>
+        <div class="unusual" id="unusual" hidden>
+          <h2 class="rail-title" id="unusual-title">Unusual right now</h2>
+          <p class="hint" id="unusual-hint"></p>
+          <div id="unusual-list" class="preset-buttons"></div>
+        </div>
+        <p class="hint rail-hint">Draw a <strong>rectangle</strong>, <strong>polygon</strong> or <strong>circle</strong> with the tools on the map to analyse any area. Outlined boxes show where we have data.</p>
+      </aside>
+    </section>
+
+    <!-- ================= settings + downloads ================= -->
+    <section class="panel controls" id="settings" aria-labelledby="controls-title">
+      <div class="ctl-col">
+        <h2 id="controls-title" class="panel-title">Dates</h2>
+        <div class="settings">
+          <div class="field-row">
+            <label>From <input id="start" type="date" min="2001-01-01"></label>
+            <label>To <input id="end" type="date" min="2001-01-01"></label>
+          </div>
+          <div class="field-row">
+            <label title="'Normal' is the median of these years">Normal = years
+              <input id="base0" type="number" min="2001" max="2025" value="2003" aria-label="Baseline first year"></label>
+            <label>to <input id="base1" type="number" min="2001" max="2025" value="2022" aria-label="Baseline last year"></label>
+          </div>
+        </div>
+        <details class="coords">
+          <summary>Type coordinates instead</summary>
+          <form id="bbox-form" class="coord-form" aria-label="Box by coordinates">
+            <fieldset>
+              <legend>Box (decimal degrees)</legend>
+              <label>West <input name="w" type="number" step="any" required value="-100"></label>
+              <label>South <input name="s" type="number" step="any" required value="30"></label>
+              <label>East <input name="e" type="number" step="any" required value="-96"></label>
+              <label>North <input name="n" type="number" step="any" required value="33"></label>
+            </fieldset>
+            <button type="submit" class="btn">Use this box</button>
+          </form>
+          <form id="point-form" class="coord-form" aria-label="Point and radius">
+            <fieldset>
+              <legend>Point + radius</legend>
+              <label>Latitude <input name="lat" type="number" step="any" min="-90" max="90" required value="31"></label>
+              <label>Longitude <input name="lon" type="number" step="any" min="-180" max="180" required value="-98"></label>
+              <label>Radius km <input name="r" type="number" step="any" min="1" max="1000" required value="50"></label>
+            </fieldset>
+            <button type="submit" class="btn">Use this point</button>
+          </form>
+        </details>
       </div>
 
-      <div class="unusual" id="unusual" hidden>
-        <h3 class="mini-title" id="unusual-title">Unusual right now</h3>
-        <p class="hint" id="unusual-hint"></p>
-        <div id="unusual-list" class="preset-buttons"></div>
-      </div>
-
-      <details class="coords">
-        <summary>Type coordinates instead</summary>
-        <form id="bbox-form" class="coord-form" aria-label="Box by coordinates">
-          <fieldset>
-            <legend>Box (decimal degrees)</legend>
-            <label>West <input name="w" type="number" step="any" required value="-100"></label>
-            <label>South <input name="s" type="number" step="any" required value="30"></label>
-            <label>East <input name="e" type="number" step="any" required value="-96"></label>
-            <label>North <input name="n" type="number" step="any" required value="33"></label>
-          </fieldset>
-          <button type="submit" class="btn">Use this box</button>
-        </form>
-        <form id="point-form" class="coord-form" aria-label="Point and radius">
-          <fieldset>
-            <legend>Point + radius</legend>
-            <label>Latitude <input name="lat" type="number" step="any" min="-90" max="90" required value="31"></label>
-            <label>Longitude <input name="lon" type="number" step="any" min="-180" max="180" required value="-98"></label>
-            <label>Radius km <input name="r" type="number" step="any" min="1" max="1000" required value="50"></label>
-          </fieldset>
-          <button type="submit" class="btn">Use this point</button>
-        </form>
-      </details>
-
-      <h2 class="panel-title">2. Dates and settings</h2>
-      <div class="settings">
-        <div class="field-row">
-          <label>From <input id="start" type="date" min="2001-01-01"></label>
-          <label>To <input id="end" type="date" min="2001-01-01"></label>
-        </div>
-        <div class="quick-dates" role="group" aria-label="Quick date ranges">
-          <button type="button" class="chip" data-range="12m">Last 12 months</button>
-          <button type="button" class="chip" data-range="ytd">This year</button>
-          <button type="button" class="chip" data-range="all">Whole record</button>
-        </div>
-        <div class="field-row">
-          <label title="'Normal' is the median of these years">Normal = years
-            <input id="base0" type="number" min="2001" max="2025" value="2003" aria-label="Baseline first year"></label>
-          <label>to <input id="base1" type="number" min="2001" max="2025" value="2022" aria-label="Baseline last year"></label>
-        </div>
+      <div class="ctl-col">
+        <h2 class="panel-title" id="mode-label">Satellite record</h2>
         <div class="mode" role="radiogroup" aria-labelledby="mode-label">
-          <span id="mode-label" class="mini-title">Satellite record</span>
           <div class="segmented">
             <label><input type="radio" name="mode" value="harmonized" checked><span>Harmonized</span></label>
             <label><input type="radio" name="mode" value="modis_only"><span>MODIS only</span></label>
@@ -143,17 +165,19 @@
         </div>
       </div>
 
-      <h2 class="panel-title">3. Download</h2>
-      <div class="downloads">
-        <button type="button" class="btn" id="dl-hotspots">Hotspots in this area (CSV)</button>
-        <button type="button" class="btn" id="dl-series">Daily analytics table (CSV)</button>
-        <div class="dl-row">
-          <button type="button" class="btn" id="dl-geojson" title="For QGIS, ArcGIS and web maps">Hotspots as GeoJSON</button>
-          <button type="button" class="btn" id="dl-kml" title="Opens in Google Earth">Hotspots as KML</button>
+      <div class="ctl-col">
+        <h2 class="panel-title">Download</h2>
+        <div class="downloads">
+          <button type="button" class="btn" id="dl-hotspots">Hotspots in this area (CSV)</button>
+          <button type="button" class="btn" id="dl-series">Daily analytics table (CSV)</button>
+          <div class="dl-row">
+            <button type="button" class="btn" id="dl-geojson" title="For QGIS, ArcGIS and web maps">Hotspots as GeoJSON</button>
+            <button type="button" class="btn" id="dl-kml" title="Opens in Google Earth">Hotspots as KML</button>
+          </div>
+          <button type="button" class="btn" id="print-briefing">Print a one-page briefing</button>
         </div>
-        <button type="button" class="btn" id="print-briefing">Print a one-page briefing</button>
+        <p class="hint">Charts download as PNG with the <span aria-hidden="true">⤓</span> button on each chart.</p>
       </div>
-      <p class="hint">Charts download as PNG with the <span aria-hidden="true">⤓</span> button on each chart.</p>
     </section>
 
     <!-- ================= RIGHT: results ================= -->
@@ -328,5 +352,6 @@
   <script src="js/calendar.js"></script>
   <script src="js/map.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/hero.js"></script>
 </body>
 </html>

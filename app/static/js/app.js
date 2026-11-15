@@ -480,13 +480,30 @@
     $("map-play").textContent = "⏸";
     $("map-play").setAttribute("aria-label", "Pause");
     const step = () => {
-      const next = +slider.value + 1;
-      if (next > mapMonths.length) { stopPlay(); return; }
+      let next = +slider.value + 1;
+      if (next > mapMonths.length) next = 1;          // loop, like a radar animation
       slider.value = String(next);
       refreshMap();
+      prefetchMonth(next + 1 > mapMonths.length ? 1 : next + 1);
     };
     step();
-    playTimer = setInterval(step, 1200);
+    playTimer = setInterval(step, PLAY_MS / playSpeed);
+  }
+  // playback speed (1x, 2x, 4x), and fetching the next month ahead so playback doesn't stall
+  const PLAY_MS = 1200;
+  let playSpeed = 1;
+  function cycleSpeed() {
+    playSpeed = playSpeed === 1 ? 2 : playSpeed === 2 ? 4 : 1;
+    $("map-speed").textContent = `${playSpeed}x`;
+    if (playTimer) { stopPlay(); togglePlay(); }
+  }
+  function prefetchMonth(i) {
+    const m = mapMonths[i - 1];
+    if (!m || !state.area || state.mapview === "off") return;
+    const monthEnd = FMT.iso(new Date(Date.UTC(+m.slice(0, 4), +m.slice(5, 7), 0)));
+    const b = body({ start: `${m}-01` < state.start ? state.start : `${m}-01`, end: monthEnd > state.end ? state.end : monthEnd });
+    const key = JSON.stringify(b);
+    if (!mapCache.has(key)) API.cells(b).then((d) => mapCache.set(key, d)).catch(() => {});
   }
 
   // ---------------------------------------------------------------- fires vs past fires
@@ -739,6 +756,7 @@
     }));
     $("map-month").addEventListener("input", debounce(() => { stopPlay(); refreshMap(); }, 120));
     $("map-play").addEventListener("click", togglePlay);
+    $("map-speed").addEventListener("click", cycleSpeed);
 
     $("compare-form").addEventListener("submit", (e) => { e.preventDefault(); runCompare(); });
 
