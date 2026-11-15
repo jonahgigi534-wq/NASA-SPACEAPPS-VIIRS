@@ -233,3 +233,14 @@ def test_map_cells_timing(client):
     t = time.perf_counter()
     r = client.post("/api/cells", json={**TEXAS_2011, "area": TEXAS_WHOLE, "start": "2019-01-01", "end": "2019-12-31"})
     assert r.status_code == 200 and time.perf_counter() - t < 2.0
+
+
+def test_fires_endpoint(client):
+    t = time.perf_counter()
+    r = client.post("/api/fires", json={**TEXAS_2011, "area": {"type": "bbox", "bbox": [-102, 30, -98, 34]}})
+    dt = time.perf_counter() - t
+    assert r.status_code == 200, r.text
+    j = r.json()
+    assert j["clusters_total"] > 0 and j["latest"] and j["largest"]
+    assert j["largest"][0]["rank"] == 1 and j["summary_text"]
+    assert dt < 2.0, f"took {dt:.2f} s"

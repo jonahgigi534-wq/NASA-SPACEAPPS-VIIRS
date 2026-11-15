@@ -131,6 +131,15 @@ const MAP = (() => {
       (data.truncated ? "<div>busiest 20,000 squares shown</div>" : "");
   }
 
+  let mark = null;
+  function highlight(bbox) {                  // outline one fire cluster and zoom to it
+    if (mark) mark.remove();
+    const [w, s_, e, n] = bbox;
+    mark = L.rectangle([[s_, w], [n, e]], { color: "#c2410c", weight: 2.5, dashArray: "6 4", fill: false, interactive: false }).addTo(map);
+    map.fitBounds(mark.getBounds(), { padding: [30, 30], maxZoom: 9, animate: false });
+  }
+  function clearHighlight() { if (mark) { mark.remove(); mark = null; } }
+
   const invalidate = () => map && map.invalidateSize();
-  return { init, show, invalidate, showCells };
+  return { init, show, invalidate, showCells, highlight, clearHighlight };
 })();

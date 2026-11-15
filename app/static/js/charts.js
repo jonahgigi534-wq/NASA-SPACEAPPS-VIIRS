@@ -59,6 +59,7 @@ const CHARTS = (() => {
   const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   function srTable(id) {
     const ch = charts[id], canvas = document.getElementById(id);
+    if (!ch.data.labels || !ch.data.labels.length) return;     // scatter charts: their data is in HTML tables
     let t = document.getElementById(`${id}-table`);
     if (!t) {
       // the wrapper is visually hidden (a table itself ignores the 1px width and would widen the page)
@@ -175,6 +176,32 @@ const CHARTS = (() => {
     });
   }
 
+  function fires(j, units) {
+    const all = j.all.map(([d, h, days]) => ({ x: Date.parse(d), y: Math.max(h, 0.5), d, days }));
+    const L = j.latest[0];
+    const latest = L ? [{ x: Date.parse(L.start), y: L.hotspots, d: L.start, days: L.days }] : [];
+    make("chart-fires", {
+      type: "scatter",
+      data: { datasets: [
+        { label: "Most recent fire cluster", data: latest, backgroundColor: C.hot, borderColor: "#7c2d12", borderWidth: 1.5, pointRadius: 7, order: 0 },
+        { label: "Every earlier fire cluster", data: all, backgroundColor: "rgba(29, 95, 168, 0.35)", pointRadius: 2.5, order: 1 },
+      ] },
+      options: {
+        plugins: {
+          title: titlePlugin(`Fire clusters by start date and size (${units}, log scale)`),
+          legend: { position: "top", align: "start", labels: { boxWidth: 12 } },
+          tooltip: { callbacks: { label: (c) => `${FMT.date(c.raw.d)}: ${FMT.int(c.raw.y)} ${units}, ${c.raw.days} day${c.raw.days === 1 ? "" : "s"}` } },
+        },
+        scales: {
+          x: { type: "linear", min: Date.UTC(2001, 0, 1), max: Date.UTC(new Date().getUTCFullYear() + 1, 0, 1),
+               ticks: { callback: (v) => new Date(v).getUTCFullYear(), maxRotation: 0, autoSkip: true }, grid: { display: false } },
+          y: { type: "logarithmic", title: axisTitle(`${units} per cluster`), grid: { color: C.grid },
+               ticks: { callback: (v) => ([1, 10, 100, 1000, 10000, 100000].includes(v) ? FMT.int(v) : "") } },
+        },
+      },
+    });
+  }
+
   // ---- PNG export ---------------------------------------------------------------------------
   function downloadCanvas(id, name) {
     const ch = charts[id];
@@ -199,5 +226,5 @@ const CHARTS = (() => {
     img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(xml);
   }
 
-  return { months, years, now, longterm, downloadCanvas, downloadSvg, charts };
+  return { months, years, now, longterm, fires, downloadCanvas, downloadSvg, charts };
 })();

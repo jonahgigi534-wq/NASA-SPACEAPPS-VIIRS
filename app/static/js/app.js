@@ -12,7 +12,7 @@
     modis_only: "MODIS only: the original Terra + Aqua detections (1 km pixels). Consistent, but MODIS is ending in 2027.",
     viirs_raw: "Raw VIIRS: 375 m detections as reported, from 2012. Not comparable with MODIS years: it sees far more hotspots.",
   };
-  const TABS = ["calendar", "patterns", "now"];
+  const TABS = ["calendar", "patterns", "now", "fires"];
 
   // ---------------------------------------------------------------- helpers
   let pending = 0;
@@ -130,6 +130,9 @@
       renderPatterns(patterns);
       await renderNow(current);
       CHARTS.longterm(ts, state.mode, state.metric === "frp" ? "MW of fire power per month" : "hotspots per month");
+      firesKey = null;
+      MAP.clearHighlight();
+      if (state.tab === "fires") loadFires();
       $("daily-card").hidden = true;
     } catch (e) {
       if (id === runId) failed(e);
@@ -476,6 +479,49 @@
     playTimer = setInterval(step, 1200);
   }
 
+  // ---------------------------------------------------------------- fires vs past fires
+  let firesKey = null;
+  async function loadFires() {
+    const key = JSON.stringify([state.area, state.mode]);
+    if (key === firesKey) return;
+    firesKey = key;
+    $("fires-text").textContent = "Grouping hotspots into fire clusters…";
+    busy(true);
+    try {
+      const j = await API.fires(body({ start: null, end: null, metric: "count" }));
+      if (key !== firesKey) return;
+      renderFires(j);
+    } catch (e) {
+      firesKey = null;
+      $("fires-text").textContent = e.message;
+    } finally { busy(false); }
+  }
+  function renderFires(j) {
+    const u = UNITS[state.mode];
+    $("fires-text").textContent = j.summary_text || "";
+    $("fires-rule").textContent = `A fire cluster = ${j.link_rule}; clusters under ${j.min_hotspots} hotspots are left out. ` +
+      `${FMT.int(j.clusters_total)} clusters in this area.`;
+    if (j.all.length) CHARTS.fires(j, u);
+    const head = `<thead><tr><th scope="col">Dates</th><th scope="col" class="num">Days</th><th scope="col" class="num">${u}</th>` +
+      `<th scope="col" class="num">Fire power (MW)</th><th scope="col" class="num">Size rank</th><th scope="col"><span class="sr-only">Show</span></th></tr></thead>`;
+    const rowHtml = (c, i, latest) => {
+      const when = c.days > 1 ? `${FMT.date(c.start)} – ${FMT.date(c.end)}` : FMT.date(c.start);
+      return `<tr class="${latest && i === 0 ? "latest" : ""}"><td>${when}${c.provisional ? '<span class="tag">provisional</span>' : ""}</td>` +
+        `<td class="num">${c.days}</td><td class="num">${FMT.int(c.hotspots)}</td><td class="num">${FMT.int(c.fire_power_mw)}</td>` +
+        `<td class="num">${FMT.int(c.rank)} of ${FMT.int(c.of)}</td>` +
+        `<td><button type="button" class="btn btn-small" data-fire="${latest ? "l" : "g"}${i}" aria-label="Show the fire of ${when} on the map">Show</button></td></tr>`;
+    };
+    $("fires-latest").innerHTML = head + "<tbody>" + j.latest.map((c, i) => rowHtml(c, i, true)).join("") + "</tbody>";
+    $("fires-largest").innerHTML = head + "<tbody>" + j.largest.map((c, i) => rowHtml(c, i, false)).join("") + "</tbody>";
+    document.querySelectorAll("[data-fire]").forEach((b) => b.addEventListener("click", () => {
+      const k = b.dataset.fire, c = (k[0] === "l" ? j.latest : j.largest)[+k.slice(1)];
+      setDates(c.start, c.end);
+      runSummaryOnly();
+      MAP.highlight(c.bbox);
+      document.getElementById("map").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }));
+  }
+
   // ---------------------------------------------------------------- choosing an area
   function setArea(area, label, presetIndex = null) {
     state.area = area;
@@ -509,6 +555,7 @@
       if (on && focus) t.focus();
     });
     Object.values(CHARTS.charts).forEach((c) => c.resize());
+    if (name === "fires") loadFires();
     writeHash();
   }
 

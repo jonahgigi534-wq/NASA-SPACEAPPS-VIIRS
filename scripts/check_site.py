@@ -158,6 +158,17 @@ with sync_playwright() as p:
     ok("map month slider", page.inner_text("#map-month-label") != "All selected dates", page.inner_text("#map-month-label"))
     page.evaluate("const s = document.getElementById('map-month'); s.value = '0'; s.dispatchEvent(new Event('input'))")
 
+    # ---- fires vs past fires --------------------------------------------------------------------
+    page.click("#tab-fires")
+    page.wait_for_function("document.querySelectorAll('#fires-largest tbody tr').length > 0", timeout=30000)
+    ok("fires vs past fires (clusters ranked)", "largest of" in page.inner_text("#fires-text"), page.inner_text("#fires-text")[:90])
+    before = page.input_value("#start")
+    page.locator('#fires-largest [data-fire="g0"]').click(); wait_idle(page)
+    ok("show a past fire (dates jump to it)", page.input_value("#start") != before,
+       page.inner_text("#range-label")[:40])
+    page.click("#tab-calendar")
+    page.locator(".preset").nth(0).click(); wait_idle(page)
+
     # ---- GeoJSON / KML, shareable link, weeks, fire power, place search, briefing ------------
     for btn, label, magic in [("#dl-geojson", "GeoJSON", b'{"type":"FeatureCollection"'), ("#dl-kml", "KML", b"<?xml")]:
         with page.expect_download(timeout=60000) as d:

@@ -175,6 +175,7 @@
         <button role="tab" id="tab-calendar" aria-controls="panel-calendar" aria-selected="true">Burning calendar</button>
         <button role="tab" id="tab-patterns" aria-controls="panel-patterns" aria-selected="false" tabindex="-1">Patterns &amp; critical periods</button>
         <button role="tab" id="tab-now" aria-controls="panel-now" aria-selected="false" tabindex="-1">Now vs history</button>
+        <button role="tab" id="tab-fires" aria-controls="panel-fires" aria-selected="false" tabindex="-1">Fires vs past</button>
       </div>
 
       <!-- Burning calendar -->
@@ -257,6 +258,26 @@
             <div class="card-tools"><button type="button" class="icon-btn" data-png="now-daily-svg" aria-label="Download daily anomaly calendar as PNG" title="Download PNG">⤓</button></div>
           </div>
           <div id="now-daily" class="daily-wrap"></div>
+        </div>
+      </div>
+
+      <!-- Fires vs past fires -->
+      <div role="tabpanel" id="panel-fires" aria-labelledby="tab-fires" class="tabpanel" hidden>
+        <div class="card">
+          <div class="card-head">
+            <h3>How the latest fire compares with every fire here since 2001</h3>
+            <div class="card-tools"><button type="button" class="icon-btn" data-png="chart-fires" aria-label="Download fire clusters chart as PNG" title="Download PNG">⤓</button></div>
+          </div>
+          <p id="fires-text" class="now-text">Loading fire clusters…</p>
+          <div class="chart-box"><canvas id="chart-fires" role="img" aria-label="Every fire cluster in this area: start date and size"></canvas></div>
+          <p class="hint" id="fires-rule"></p>
+        </div>
+        <div class="card">
+          <h3 class="table-title">Most recent fire clusters</h3>
+          <div class="table-wrap"><table class="data-table" id="fires-latest"></table></div>
+          <h3 class="table-title">Largest fire clusters</h3>
+          <div class="table-wrap"><table class="data-table" id="fires-largest"></table></div>
+          <p class="hint">“Show” sets the dates to that fire and outlines it on the map.</p>
         </div>
       </div>
 

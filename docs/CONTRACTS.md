@@ -159,6 +159,18 @@ detections in that cell counts as 0). Busiest 20,000 cells at most.
  "units": "hotspots (MODIS scale)", "baseline": [2003, 2022], "baseline_years_used": 20, "truncated": false}
 ```
 
+`POST /api/fires` (added Nov 14): fire clusters in the area over the whole record (0.1° cells
+with detections that touch on the same day or within 2 days; clusters under 5 hotspots dropped).
+`latest` = the 5 most recent, `largest` = the 10 biggest, each ranked by size against all clusters;
+`all` = every cluster as `[start, hotspots, days]`. Areas with more than 1.5 million cell-days → 400.
+```
+{"clusters_total": 96, "link_rule": "...", "min_hotspots": 5,
+ "latest": [{"start": "2026-09-07", "end": "2026-09-12", "days": 6, "hotspots": 11.0, "peak_date": "2026-09-08",
+             "peak_hotspots": 4.0, "fire_power_mw": 263.0, "cells": 3, "lat": 35.6, "lon": -105.4,
+             "bbox": [-105.5, 35.5, -105.3, 35.7], "rank": 44, "of": 96, "provisional": true}],
+ "largest": [...], "all": [["2001-03-02", 12.0, 3]], "summary_text": "The most recent fire cluster here ..."}
+```
+
 `POST /api/export/hotspots.geojson` and `/api/export/hotspots.kml` (added Nov 14): the same points as
 the hotspots CSV, as a GeoJSON FeatureCollection or KML placemarks.
 

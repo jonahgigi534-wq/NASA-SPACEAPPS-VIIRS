@@ -279,3 +279,36 @@ def test_trend_rising_and_flat():
     assert t2["direction"] == "none" and "No clear trend" in t2["text"]
     short = an.monthly_table(rising.loc["2015":"2020"])
     assert an.trend(short) is None
+
+
+# ---- fire clusters -------------------------------------------------------------------------------
+
+def _rec(rows):
+    df = pd.DataFrame(rows, columns=["lat", "lon", "date", "value"])
+    df["frp"] = df["value"] * 10.0
+    df["cell_id"] = (np.round((df["lat"] + 90) * 10) * 3600 + np.round((df["lon"] + 180) * 10)).astype(int)
+    return df
+
+
+def test_touching_cells_on_close_days_form_one_cluster():
+    rows = [(31.0, -98.0, "2020-04-01", 5), (31.1, -98.1, "2020-04-01", 3),   # diagonal neighbors
+            (31.1, -98.0, "2020-04-03", 4),                                     # 2 days later, touching
+            (31.0, -98.0, "2020-04-10", 6),                                     # a week later: new fire
+            (35.0, -100.0, "2020-04-01", 9)]                                    # far away: new fire
+    cl = an.fire_clusters(_rec(rows), min_size=1).sort_values("start").reset_index(drop=True)
+    assert len(cl) == 3
+    big = cl.loc[cl["hotspots"] == 12].iloc[0]
+    assert big["days"] == 3 and big["cells"] == 3            # 3 distinct cells
+    assert str(big["peak_date"].date()) == "2020-04-01" and big["peak_hotspots"] == 8
+
+
+def test_small_clusters_are_dropped_and_latest_is_ranked():
+    rows = [(31.0, -98.0, "2019-04-01", 50), (31.0, -98.0, "2020-04-01", 20),
+            (31.0, -98.0, "2021-04-01", 2), (31.0, -98.0, "2026-11-10", 30)]
+    cl = an.fire_clusters(_rec(rows))                     # default minimum 5 drops the 2-hotspot fire
+    assert len(cl) == 3
+    out = an.clusters_response(cl, date(2026, 11, 13), date(2026, 8, 31), "hotspots")
+    assert out["latest"][0]["start"] == "2026-11-10"
+    assert out["latest"][0]["rank"] == 2 and out["latest"][0]["of"] == 3
+    assert out["latest"][0]["provisional"] is True
+    assert "2nd largest of 3 clusters since 2019" in out["summary_text"]

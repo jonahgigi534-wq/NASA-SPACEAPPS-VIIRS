@@ -73,5 +73,6 @@ const API = (() => {
     current: (b) => post("current", b),
     timeseries: (b) => post("timeseries", b),
     cells: (b) => post("cells", b),
+    fires: (b) => post("fires", b),
   };
 })();

@@ -797,3 +797,106 @@ def monthly_values(s):
     """{'YYYY-MM': monthly total or None} for the long-term chart."""
     mt = monthly_table(s)
     return {str(p): r1(v) for p, v in mt["value"].items()}
+
+
+# =============================================================================================
+# 8. Fire clusters ("how a current fire compares with previous ones")
+# =============================================================================================
+# A fire cluster = 0.1 degree cells with detections that touch (sides or corners) on the same
+# day, or within LINK_DAYS days of each other. Built on the daily cells (about 11 km), so one
+# large fire is one cluster, and two fires in neighboring cells on the same days merge.
+
+LINK_DAYS = 2              # cells on day d and day d+1 or d+2 are joined (a 1-day gap is allowed)
+MIN_CLUSTER = 5            # clusters smaller than 5 MODIS-equivalent hotspots are left out (noise)
+MAX_CLUSTER_RECORDS = 1_500_000
+
+
+def fire_clusters(rec, min_size=MIN_CLUSTER):
+    """rec: DataFrame with lat, lon (cell centers), date, value (hotspots), frp.
+    Returns one row per cluster: start, end, days, hotspots, peak_date, peak_hotspots,
+    fire_power_mw, cells, lat, lon (hotspot-weighted center), bbox [w, s, e, n]."""
+    from scipy.sparse import coo_matrix
+    from scipy.sparse.csgraph import connected_components
+    rec = rec[rec["value"] > 0].reset_index(drop=True)
+    cols = ["start", "end", "days", "hotspots", "peak_date", "peak_hotspots", "fire_power_mw",
+            "cells", "lat", "lon", "bbox"]
+    if rec.empty:
+        return pd.DataFrame(columns=cols)
+    day = (pd.to_datetime(rec["date"]) - pd.Timestamp("2000-01-01")).dt.days.to_numpy(np.int64)
+    li = np.round((rec["lat"].to_numpy() + 90) * 10).astype(np.int64)
+    lo = np.round((rec["lon"].to_numpy() + 180) * 10).astype(np.int64)
+    key = day * 10_000_000 + li * 10_000 + lo
+    order = np.argsort(key, kind="stable")
+    sk = key[order]
+    n = len(key)
+    # neighbor offsets: same day (half of the 8 neighbors, the other half is found from the
+    # other side), then all 9 positions on each of the next LINK_DAYS days
+    offs = [(0, 0, 1), (0, 1, -1), (0, 1, 0), (0, 1, 1)]
+    offs += [(d, a, b) for d in range(1, LINK_DAYS + 1) for a in (-1, 0, 1) for b in (-1, 0, 1)]
+    src, dst = [], []
+    for d, a, b in offs:
+        target = key + d * 10_000_000 + a * 10_000 + b
+        j = np.searchsorted(sk, target)
+        j = np.minimum(j, n - 1)
+        hit = sk[j] == target
+        src.append(np.nonzero(hit)[0])
+        dst.append(order[j[hit]])
+    src, dst = np.concatenate(src), np.concatenate(dst)
+    g = coo_matrix((np.ones(len(src), dtype=np.int8), (src, dst)), shape=(n, n))
+    _, label = connected_components(g, directed=False)
+    rec = rec.assign(label=label, date=pd.to_datetime(rec["date"]))
+
+    daily = rec.groupby(["label", "date"])["value"].sum().reset_index()
+    peak = daily.loc[daily.groupby("label")["value"].idxmax()].set_index("label")
+    agg = rec.groupby("label").agg(start=("date", "min"), end=("date", "max"),
+                                   hotspots=("value", "sum"), fire_power_mw=("frp", "sum"),
+                                   cells=("cell_id", "nunique"),
+                                   w=("lon", "min"), e=("lon", "max"), s=("lat", "min"), n=("lat", "max"))
+    wsum = rec.assign(wl=rec["lat"] * rec["value"], wo=rec["lon"] * rec["value"]).groupby("label")[["wl", "wo"]].sum()
+    agg["lat"] = wsum["wl"] / agg["hotspots"]
+    agg["lon"] = wsum["wo"] / agg["hotspots"]
+    agg["peak_date"] = peak["date"]
+    agg["peak_hotspots"] = peak["value"]
+    agg["days"] = (agg["end"] - agg["start"]).dt.days + 1
+    agg = agg[agg["hotspots"] >= min_size].copy()
+    h = CELL_DEG / 2
+    agg["bbox"] = [[round(w - h, 2), round(s - h, 2), round(e + h, 2), round(n_ + h, 2)]
+                   for w, s, e, n_ in zip(agg["w"], agg["s"], agg["e"], agg["n"])]
+    return agg[cols].reset_index(drop=True)
+
+
+def clusters_response(cl, data_end, provisional_after, unit_word, top=10):
+    """Body of /api/fires: the latest clusters ranked against all clusters, and the largest."""
+    def row(r, rank, of):
+        return {"start": r.start.strftime("%Y-%m-%d"), "end": r.end.strftime("%Y-%m-%d"),
+                "days": int(r.days), "hotspots": r1(r.hotspots),
+                "peak_date": r.peak_date.strftime("%Y-%m-%d"), "peak_hotspots": r1(r.peak_hotspots),
+                "fire_power_mw": r1(r.fire_power_mw), "cells": int(r.cells),
+                "lat": round(float(r.lat), 3), "lon": round(float(r.lon), 3), "bbox": r.bbox,
+                "rank": int(rank), "of": int(of),
+                "provisional": bool(r.end.date() > provisional_after)}
+    n = len(cl)
+    out = {"clusters_total": n, "link_rule": (f"0.1° cells with detections that touch (sides or corners) "
+                                              f"on the same day or within {LINK_DAYS} days"),
+           "min_hotspots": MIN_CLUSTER, "latest": [], "largest": [], "all": [], "summary_text": None}
+    if n == 0:
+        out["summary_text"] = "No fire clusters here in the record."
+        return out
+    cl = cl.assign(rank=cl["hotspots"].rank(ascending=False, method="min").astype(int))
+    latest = cl.sort_values(["end", "hotspots"], ascending=[False, False]).head(5)
+    largest = cl.sort_values("hotspots", ascending=False).head(top)
+    out["latest"] = [row(r, r.rank, n) for r in latest.itertuples(index=False)]
+    out["largest"] = [row(r, r.rank, n) for r in largest.itertuples(index=False)]
+    # every cluster as [start, hotspots, days] for the "all fires" chart (compact)
+    out["all"] = [[r.start.strftime("%Y-%m-%d"), r1(r.hotspots), int(r.days)]
+                  for r in cl.sort_values("start").itertuples(index=False)]
+    L = latest.iloc[0]
+    since = cl["start"].min().year
+    ago = (pd.Timestamp(data_end) - L.end).days
+    when = (f"{fmt_date(L.start)} to {fmt_date(L.end)}" if L.days > 1 else fmt_date(L.start))
+    rank_words = "the largest" if L["rank"] == 1 else f"the {ordinal(int(L['rank']))} largest"
+    status = "still active in the latest data" if ago <= 2 else f"last seen {ago} days before the latest data"
+    out["summary_text"] = (f"The most recent fire cluster here ({when}, {int(L.days)} day"
+                           f"{'s' if L.days != 1 else ''}, {count_words(L.hotspots, unit_word)}) is "
+                           f"{rank_words} of {n:,} clusters since {since}; {status}.")
+    return out

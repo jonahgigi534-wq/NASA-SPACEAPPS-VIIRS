@@ -653,6 +653,32 @@ def current(q: Query):
     return clean(an.current(c.series(), as_of, c.baseline, c.provisional_after, c.unit_word))
 
 
+@app.post("/api/fires")
+def fires(q: Query):
+    """Fire clusters in the area over the whole record: the most recent ones ranked against
+    every earlier cluster, and the largest ones (not in the original contract)."""
+    c = ctx_for(q)
+    col = MODE_COLUMN[q.mode]
+    sel = c.sel[["region", "cell_id"]]
+    if sel.empty:
+        return clean(an.clusters_response(an.fire_clusters(pd.DataFrame(columns=["cell_id", "lat", "lon", "date", "value", "frp"])),
+                                          c.data_end, c.provisional_after, c.unit_word))
+    cur = c.store.con.cursor()
+    try:
+        cur.register("sel", sel)
+        join = "FROM cells c JOIN sel s ON c.region = s.region AND c.cell_id = s.cell_id"
+        n = cur.execute(f"SELECT count(*) {join} WHERE {col} > 0").fetchone()[0]
+        if n > an.MAX_CLUSTER_RECORDS:
+            raise ApiError("This area has too many fires to group into clusters quickly. "
+                           "Draw a smaller area (for example one state or province).")
+        rec = cur.execute(f"SELECT c.cell_id, c.lat, c.lon, c.date, {col} AS value, mefrp AS frp "
+                          f"{join} WHERE {col} > 0").df()
+    finally:
+        cur.close()
+    cl = an.fire_clusters(rec)
+    return clean(an.clusters_response(cl, c.data_end, c.provisional_after, c.unit_word))
+
+
 MAP_CELL_CAP = 20_000
 
 
