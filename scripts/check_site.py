@@ -243,6 +243,15 @@ with sync_playwright() as p:
     page.wait_for_function("document.getElementById('kf-total').textContent !== '–'", timeout=20000)
     ok("mock mode (?mock=1)", page.is_visible("#mock-banner"))
 
+    # opening story: automated browsers skip it (so every check above ran without it); ?intro=1
+    # shows it, and Skip takes it away
+    page.goto(BASE + "/?intro=1")
+    page.wait_for_selector(".intro-line .w.in", timeout=10000)
+    intro_text = page.inner_text(".intro-line")
+    page.click(".intro-skip")
+    page.wait_for_selector("#intro", state="detached", timeout=5000)
+    ok("opening story (?intro=1) shows and can be skipped", "deal" in intro_text.lower(), intro_text)
+
     # Spanish interface (beta): page text, numbers and the server's sentences all switch
     page.goto(BASE + "/?lang=es")
     page.wait_for_function("document.getElementById('kf-total').textContent !== '–'", timeout=30000)
