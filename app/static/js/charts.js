@@ -5,7 +5,7 @@ const CHARTS = (() => {
   const C = {
     harmonized: "#1d5fa8",   // blue
     viirs: "#e8590c",        // orange (blue/orange is safe for common color blindness)
-    modis: "#3d3d3d",
+    modis: "#111111",
     bar: "#8fa3b8",
     hot: "#c2410c",
     season: "rgba(232, 89, 12, 0.10)",
@@ -50,9 +50,18 @@ const CHARTS = (() => {
   Chart.register(whiteBg, band, vlines);
 
   const charts = {};
+  // A chart made inside a hidden tab is drawn at zero size. Watch each chart's box and redraw the
+  // chart whenever the box gets a size the canvas doesn't have yet (the tab was opened).
+  const boxWatch = new ResizeObserver((entries) => entries.forEach(({ target }) => {
+    const canvas = target.querySelector("canvas"), c = canvas && Chart.getChart(canvas);
+    if (!c || target.clientWidth === 0) return;
+    if (canvas.clientWidth !== target.clientWidth || canvas.clientHeight === 0) { c.resize(); c.update("none"); }
+  }));
   function make(id, config) {
     if (charts[id]) charts[id].destroy();
-    charts[id] = new Chart(document.getElementById(id), config);
+    const canvas = document.getElementById(id);
+    charts[id] = new Chart(canvas, config);
+    boxWatch.observe(canvas.parentElement);
     srTable(id);
     return charts[id];
   }
@@ -149,22 +158,25 @@ const CHARTS = (() => {
   function longterm(ts, mode, yTitle = "hotspots per month") {
     const labels = ts.series.map((r) => r.month);
     const idx = (iso) => labels.indexOf(iso.slice(0, 7));
-    const ds = (key, label, color, dash) => ({
+    // order: lower is drawn on top. The MODIS reference goes on top as a thin dashed line, because
+    // the harmonized line follows it closely (and equals it before 2012) and would hide it.
+    const ds = (key, label, color, dash, order) => ({
       label, data: ts.series.map((r) => r[key]), borderColor: color, backgroundColor: color,
-      borderWidth: mode === key ? 2.6 : 1.3, borderDash: dash, pointRadius: 0, spanGaps: false, tension: 0,
+      borderWidth: mode === key ? 2.6 : key === "modis_only" ? 1.8 : 1.3, borderDash: dash,
+      pointRadius: 0, spanGaps: false, tension: 0, order,
     });
     make("chart-longterm", {
       type: "line",
       data: { labels, datasets: [
-        ds("viirs_raw", L("Raw VIIRS (not harmonized)", "VIIRS sin ajustar (no armonizado)"), C.viirs),
-        ds("modis_only", "MODIS only (reference)", C.modis, [3, 3]),
-        ds("harmonized", L("Harmonized (MODIS scale)", "Armonizado (escala MODIS)"), C.harmonized),
+        ds("viirs_raw", L("Raw VIIRS (not harmonized)", "VIIRS sin ajustar (no armonizado)"), C.viirs, undefined, 2),
+        ds("modis_only", L("MODIS only (reference)", "Solo MODIS (referencia)"), C.modis, [5, 3], 0),
+        ds("harmonized", L("Harmonized (MODIS scale)", "Armonizado (escala MODIS)"), C.harmonized, undefined, 1),
       ].filter((d) => d.data.some((v) => v != null)) },
       options: {
         interaction: { mode: "index", intersect: false },
         plugins: {
           title: titlePlugin(`${yTitle[0].toUpperCase()}${yTitle.slice(1)}, 2001 → ${L("today", "hoy")}`),
-          legend: { position: "top", align: "start", labels: { boxWidth: 18 } },
+          legend: { position: "top", align: "start", labels: { boxWidth: 18, sort: (a, b) => a.datasetIndex - b.datasetIndex } },
           vlines: { lines: ts.sensor_switches.map((s) => ({ index: idx(s.date), label: s.label })).filter((l) => l.index >= 0) },
           tooltip: { callbacks: { title: (it) => FMT.monthLabel(it[0].label),
             label: (c) => `${c.dataset.label}: ${c.raw == null ? L("no data", "sin datos") : FMT.int(c.raw)}` } },

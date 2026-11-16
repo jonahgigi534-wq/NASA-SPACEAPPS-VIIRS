@@ -660,7 +660,8 @@
       $(t.getAttribute("aria-controls")).hidden = !on;
       if (on && focus) t.focus();
     });
-    Object.values(CHARTS.charts).forEach((c) => c.resize());
+    // redraw after the browser has laid out the tab just shown (a chart made while it was hidden is blank)
+    requestAnimationFrame(() => Object.values(CHARTS.charts).forEach((c) => { c.resize(); c.update("none"); }));
     if (name === "fires") loadFires();
     writeHash();
   }

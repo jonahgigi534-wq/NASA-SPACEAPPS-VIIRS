@@ -67,8 +67,8 @@ const I18N = (() => {
     "Most recent fire clusters": "Grupos de incendios más recientes", "Largest fire clusters": "Grupos de incendios más grandes",
     "“Show” sets the dates to that fire and outlines it on the map.": "“Ver” pone las fechas de ese incendio y lo marca en el mapa.",
     "The satellite switch: raw vs harmonized": "El cambio de satélite: sin ajustar vs armonizado",
-    "VIIRS (from 2012) sees many more hotspots than MODIS. Raw VIIRS jumps; the harmonized record continues on the MODIS scale.":
-      "VIIRS (desde 2012) ve muchos más focos que MODIS. VIIRS sin ajustar salta; el registro armonizado sigue en la escala de MODIS.",
+    "VIIRS (from 2012) sees many more hotspots than MODIS. Raw VIIRS jumps; the harmonized record continues on the MODIS scale. The dashed black line is MODIS itself: where you can barely see it, the harmonized line sits right on top of it.":
+      "VIIRS (desde 2012) ve muchos más focos que MODIS. VIIRS sin ajustar salta; el registro armonizado sigue en la escala de MODIS. La línea negra discontinua es MODIS: donde casi no se ve, la línea armonizada está justo encima.",
     "Data: NASA FIRMS active fires (MODIS C6.1, VIIRS 375 m S-NPP / NOAA-20 / NOAA-21). Built for NASA Space Apps 2026. Hotspots are satellite fire detections, not burned area.":
       "Datos: incendios activos de NASA FIRMS (MODIS C6.1, VIIRS 375 m S-NPP / NOAA-20 / NOAA-21). Hecho para NASA Space Apps 2026. Los focos son detecciones satelitales de fuego, no área quemada.",
     "Methods, validation and limitations": "Métodos, validación y limitaciones",
