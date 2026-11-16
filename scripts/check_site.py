@@ -270,12 +270,12 @@ with sync_playwright() as p:
     page.goto(BASE + "/?lang=es")
     page.wait_for_function("document.getElementById('kf-total').textContent !== '–'", timeout=30000)
     wait_idle(page)
-    es_label = page.inner_text("#kf-total-label")
-    es_sum = page.inner_text("#summary-text")
-    ok("Spanish interface (?lang=es)",
-       page.evaluate("document.documentElement.lang") == "es" and "focos" in es_label.lower()
-       and "." in page.inner_text("#kf-total") and "Esta zona" in es_sum,
-       f"{es_label} / {es_sum[:60]}")
+    nav_text = page.inner_text(".site-header nav")
+    en_label = page.inner_text("#kf-total-label")
+    ok("English only: no language switch, ?lang=es is ignored",
+       "Español" not in nav_text and page.evaluate("document.documentElement.lang") == "en"
+       and "focos" not in en_label.lower(),
+       f"nav: {nav_text[:60]!r} / label: {en_label}")
 
     phone = browser.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=2, is_mobile=True, has_touch=True)
     pp = phone.new_page()

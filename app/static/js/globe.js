@@ -8,12 +8,8 @@ const GLOBE = (() => {
   const root = document.getElementById("globe");
   if (!root) return { open() {} };
   const params = new URLSearchParams(location.search);
-  const ES = params.get("lang") === "es";
-  const T = ES
-    ? { title: "¿Dónde quiere mirar?", sub: "Elija una región. Gire el globo si quiere.",
-        skip: "Abrir el panel", back: "Volver a donde estaba" }
-    : { title: "Where do you want to look?", sub: "Pick a region. Spin the globe if you like.",
-        skip: "Just open the dashboard", back: "Go back to where I was" };
+  const T = { title: "Where do you want to look?", sub: "Pick a region. Spin the globe if you like.",
+              skip: "Just open the dashboard", back: "Go back to where I was" };
   const LIB = "https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.0/dist/maplibre-gl";
   const SPIN_DEG_PER_S = 5, GLOBE_SHARE = 0.95, FLY_MS = 3400;   // FLY_MS matches the slide in globe.css
   const FADE_MS = 800, APP_WAIT_MS = 20000;

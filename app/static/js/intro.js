@@ -20,16 +20,7 @@
   window.FireBridgeIntro = true;                 // js/globe.js opens the globe underneath when the story plays
 
   // *word* marks the accent colour; "/" is a line break
-  const isSpanish = params.get("lang") === "es";
-  const LINES = isSpanish ? [
-    "Así está la cosa",
-    "Los satélites vigilan / los *incendios* desde 2000",
-    "En 2012 llegaron otros nuevos / que ven *más* *de* *7×* *más*",
-    "Parece que el fuego / se disparó. *No* *fue* *así.*",
-    "Las cámaras cambiaron. / *Arreglamos* *las* *cuentas.*",
-    "Un solo registro",
-    "Esto es *FireBridge.*",
-  ] : [
+  const LINES = [
     "Here's the deal",
     "Satellites have watched / *fires* since 2000",
     "In 2012 new ones showed up / and saw *over* *7×* *more*",
@@ -38,7 +29,7 @@
     "One fair record",
     "This is *FireBridge.*",
   ];
-  const SKIP_LABEL = isSpanish ? "Saltar la introducción" : "Skip intro";
+  const SKIP_LABEL = "Skip intro";
 
   const LOADING_MS = 900, STAGGER_MS = 75, HOLD_MS = 1500, FIRST_HOLD_MS = 1300, OUT_MS = 420, LIFT_MS = 1000;
   const stage = root.querySelector(".intro-stage");
