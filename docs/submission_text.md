@@ -52,6 +52,57 @@ The data shaped the project: the size of the MODIS-to-VIIRS jump made a correcti
 the 2012–2018 overlap made it learnable, the land-cover data showed one ratio doesn't fit every
 landscape, and FIRMS missing-data days led us to treat gaps as unknown rather than zero.
 
+## NASA Data (form field: Link Text | Link Url)
+- NASA FIRMS active fire archive download (MODIS MCD14ML, VIIRS 375 m) | https://firms.modaps.eosdis.nasa.gov/download/
+- MODIS Collection 6.1 active fires, near real-time (MCD14DL) | https://doi.org/10.5067/FIRMS/MODIS/MCD14DL.NRT.0061
+- VIIRS 375 m active fires, Suomi NPP (VNP14IMGT) | https://doi.org/10.5067/FIRMS/VIIRS/VNP14IMGT_NRT.002
+- VIIRS 375 m active fires, NOAA-20 (VJ114IMGT) | https://doi.org/10.5067/FIRMS/VIIRS/VJ114IMGT_NRT.002
+- VIIRS 375 m active fires, NOAA-21 (VJ214IMG) | https://doi.org/10.5067/VIIRS/VJ214IMG_NRT.002
+- NASA FIRMS Area API (hourly live fire feed) | https://firms.modaps.eosdis.nasa.gov/api/area/
+- NASA FIRMS Missing Data API (satellite outage days) | https://firms.modaps.eosdis.nasa.gov/api/missing_data/
+- MODIS Land Cover Type, MCD12Q1 v061 | https://doi.org/10.5067/MODIS/MCD12Q1.061
+- MODIS Burned Area, MCD64A1 v061 | https://doi.org/10.5067/MODIS/MCD64A1.061
+- NASA AppEEARS (download of land cover and burned area) | https://appeears.earthdatacloud.nasa.gov/
+- NASA GIBS Blue Marble imagery (globe view) | https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/gibs-api
+- NASA FIRMS overview (Earthdata) | https://www.earthdata.nasa.gov/data/tools/firms
+- NASA Earthdata Login | https://urs.earthdata.nasa.gov/
+
+## Space Agency Partner & Other Data (form field: Link Text | Link Url)
+- FireBridge source code (GitHub) | https://github.com/jonahgigi534-wq/NASA-SPACEAPPS-VIIRS
+- FireBridge processed data (Hugging Face dataset) | https://huggingface.co/datasets/JonathanGigi/SPACEAPPS-DATA
+- OpenStreetMap map tiles and data | https://www.openstreetmap.org/copyright
+- Nominatim place search (OpenStreetMap) | https://nominatim.org/
+- Leaflet (interactive map) | https://leafletjs.com/
+- Leaflet.draw (drawing areas on the map) | https://github.com/Leaflet/Leaflet.draw
+- MapLibre GL JS (globe view) | https://maplibre.org/
+- D3.js (calendar heatmaps) | https://d3js.org/
+- Chart.js (charts) | https://www.chartjs.org/
+- Inter font (Google Fonts) | https://fonts.google.com/specimen/Inter
+- IBM Plex Mono font (Google Fonts) | https://fonts.google.com/specimen/IBM+Plex+Mono
+- Open Runde font (Fontsource) | https://fontsource.org/fonts/open-runde
+- Python | https://www.python.org/
+- pandas | https://pandas.pydata.org/
+- NumPy | https://numpy.org/
+- SciPy | https://scipy.org/
+- statsmodels | https://www.statsmodels.org/
+- DuckDB | https://duckdb.org/
+- Apache Arrow / PyArrow (Parquet files) | https://arrow.apache.org/
+- rasterio (land cover and burned area rasters) | https://rasterio.readthedocs.io/
+- Shapely (area geometry) | https://shapely.readthedocs.io/
+- Matplotlib (validation figures) | https://matplotlib.org/
+- FastAPI (web API) | https://fastapi.tiangolo.com/
+- Uvicorn (web server) | https://uvicorn.dev/
+- Pydantic (API data validation) | https://docs.pydantic.dev/
+- pytest (tests) | https://docs.pytest.org/
+- Playwright (browser tests and screenshots) | https://playwright.dev/
+- axe-core (accessibility audit) | https://github.com/dequelabs/axe-core
+- Docker (container) | https://www.docker.com/
+- Azure Container Apps (hosting) | https://azure.microsoft.com/en-us/products/container-apps
+- GitHub Actions (automated tests) | https://github.com/features/actions
+- FFmpeg (demo video) | https://github.com/FFmpeg/FFmpeg
+- Canva (slide template) | https://www.canva.com/
+- Claude Code by Anthropic (AI coding assistant) | https://www.anthropic.com/claude-code
+
 ## Use of AI
 We used Claude Code (Anthropic) as a coding assistant for the data pipeline, the API, the
 website, tests, the deploy and video scripts, and drafts of the documentation. The team
