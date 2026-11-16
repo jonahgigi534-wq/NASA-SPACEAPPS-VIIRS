@@ -73,9 +73,9 @@ def pad(freqs, length, gain):
 
 
 CHORDS = [  # (start, length, notes)
-    (0.0, 3.2, ["A2", "E3", "A3", "C4"]),
-    (3.0, 4.4, ["F2", "C3", "A3", "C4"]),
-    (7.3, 2.4, ["C3", "G3", "C4", "E4"]),
+    (0.0, 3.6, ["A2", "E3", "A3", "C4"]),
+    (3.4, 3.7, ["F2", "C3", "A3", "C4"]),
+    (7.0, 2.7, ["C3", "G3", "C4", "E4"]),
     (9.5, 2.2, ["G2", "D3", "B3", "D4"]),
     (11.5, 3.0, ["A2", "E3", "C4", "E4"]),
     (14.3, 3.4, ["F2", "C3", "A3", "E4"]),
@@ -98,10 +98,10 @@ def pluck(f, length=0.25, bright=6, gain=1.0):
     return s * gain
 
 
-bass_roots = {0: "A1", 3.0: "F1", 7.3: "C2", 9.5: "G1", 11.5: "A1", 14.3: "F1", 17.6: "C2", 21.1: "G1", 23.2: "A1", 26.4: "F1"}
+bass_roots = {0: "A1", 3.4: "F1", 7.0: "C2", 9.5: "G1", 11.5: "A1", 14.3: "F1", 17.6: "C2", 21.1: "G1", 23.2: "A1", 26.4: "F1"}
 roots = sorted(bass_roots.items())
 beat = 0.3
-t = 3.0
+t = 3.4
 while t < 26.4:
     if not (9.4 < t < 11.5):                               # breathe during the logo
         root = [r for s, r in roots if s <= t][-1]
@@ -162,20 +162,28 @@ def shimmer(length=1.6, gain=0.18):
     return s * np.exp(-tt * 2.2) * (1 - np.exp(-tt * 40)) * gain / 5
 
 
-# hook: number count-up ticks, pop
-for i in range(14):
-    add(tick(1200 + i * 90, 0.09), 0.55 + 1.2 * (1 - (1 - i / 14) ** 2.2))
-add(boom(0.55, 62, 1.2), 0.45)
-add(whoosh(0.7, 0.22), 2.6)
+# intro: satellite pass (soft sweep, left to right), sparkles as fires light up, callout pop
+add(boom(0.45, 60, 1.4), 0.25)
+n_sw = int(1.9 * SR); tt = np.arange(n_sw) / SR
+sweep = lowpass_fast(noise(n_sw), 2500) * np.sin(np.pi * tt / 1.9) ** 2 * 0.12
+add(sweep * np.linspace(1.2, 0.2, n_sw), 0.3, 1, 0)       # left channel heavier at start
+add(sweep * np.linspace(0.2, 1.2, n_sw), 0.3, 1, 0)
+spark_rng = np.random.default_rng(5)
+for k in range(26):
+    tk = 0.45 + 1.7 * k / 26 + spark_rng.uniform(0, 0.05)
+    add(tick(2600 + spark_rng.uniform(-500, 900), 0.05), tk, 1, -0.6 + 1.2 * k / 26)
+add(pluck(note("E5"), 0.4, 4, 0.22), 2.08)
+add(pluck(note("A5"), 0.4, 4, 0.16), 2.18)
+add(whoosh(0.7, 0.22), 3.0)
 # chart: bars
 for i in range(11):
-    add(pluck(note("A4") * 2 ** (i / 24), 0.18, 3, 0.18), 3.3 + i * 0.075, 1, -0.3 + i * 0.05)
+    add(pluck(note("A4") * 2 ** (i / 24), 0.18, 3, 0.18), 3.6 + i * 0.075, 1, -0.3 + i * 0.05)
 for k in range(14):
-    add(pluck(note("E5") * 2 ** (k / 30), 0.16, 5, 0.16), 4.6 + k * 0.05, 1, -0.2 + k * 0.04)
-add(boom(0.35, 90, 0.8), 4.6)
-add(riser(1.0, 0.18), 6.35)
-add(boom(0.75, 58, 1.6), 7.35)
-add(shimmer(1.4, 0.16), 7.4)
+    add(pluck(note("E5") * 2 ** (k / 30), 0.16, 5, 0.16), 5.0 + k * 0.05, 1, -0.2 + k * 0.04)
+add(boom(0.35, 90, 0.8), 5.0)
+add(riser(1.0, 0.18), 6.0)
+add(boom(0.75, 58, 1.6), 7.0)
+add(shimmer(1.4, 0.16), 7.05)
 add(whoosh(0.7, 0.22), 9.2)
 # logo
 add(riser(0.8, 0.14), 9.65)

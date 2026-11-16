@@ -37,12 +37,56 @@ def settle(page, ms=2500):
     page.wait_for_timeout(ms)
 
 
+CLEAN_CSS = """
+  body * { visibility: hidden !important; }
+  .leaflet-tile-pane, .leaflet-tile-pane *, .leaflet-overlay-pane canvas { visibility: visible !important; }
+"""
+
+
+def capture_clean(p, base):
+    """The bare map for the opening shot: map tiles only, and the fire squares alone on a
+    transparent background (same view, 1.25x pixels so it stays sharp full-screen)."""
+    try:
+        b = p.chromium.launch()
+    except Exception:
+        b = p.chromium.launch(channel="msedge")
+    pg = b.new_page(viewport={"width": 1920, "height": 1080}, device_scale_factor=1.25)
+    pg.goto(base + hash_for("2011-04-01", "2011-07-31", "Apr-Jul+2011"), timeout=180000)
+    pg.wait_for_function("document.getElementById('kf-total') && document.getElementById('kf-total').textContent !== '–'",
+                         timeout=180000)
+    settle(pg, 7000)
+    box = rect(pg, "#map")
+    clip = {"x": box[0], "y": box[1], "width": box[2], "height": box[3]}
+    pg.add_style_tag(content=CLEAN_CSS)
+    pg.wait_for_timeout(500)
+    pg.add_style_tag(content=".leaflet-overlay-pane canvas { visibility: hidden !important; }")
+    pg.wait_for_timeout(300)
+    pg.screenshot(path=str(OUT / "clean_map.png"), clip=clip)
+    pg.add_style_tag(content="""html, body, #map, .map, .leaflet-container { background: transparent !important; }
+        .leaflet-tile-pane, .leaflet-tile-pane * { visibility: hidden !important; }
+        .leaflet-overlay-pane canvas { visibility: visible !important; }""")
+    pg.wait_for_timeout(300)
+    pg.screenshot(path=str(OUT / "clean_fire.png"), clip=clip, omit_background=True)
+    # where the busiest squares are (viewport px), for the "a hotspot" callout
+    b.close()
+    print("saved clean_map, clean_fire", clip)
+    return clip
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--url", required=True)
+    ap.add_argument("--clean-only", action="store_true", help="only re-capture the bare map for the opening")
     a = ap.parse_args()
     base = a.url.rstrip("/") + "/"
     OUT.mkdir(exist_ok=True)
+    if a.clean_only:
+        with sync_playwright() as p:
+            clip = capture_clean(p, base)
+        rects = json.loads((OUT / "rects.json").read_text())
+        rects["clean"] = {"clip": [clip["x"], clip["y"], clip["width"], clip["height"]]}
+        (OUT / "rects.json").write_text(json.dumps(rects, indent=1))
+        return
     rects = {}
 
     with sync_playwright() as p:
@@ -149,6 +193,8 @@ def main():
             return r.json(); }""", BBOX)
         (OUT / "summary.json").write_text(json.dumps(summ))
         b.close()
+        clip = capture_clean(p, base)
+        rects["clean"] = {"clip": [clip["x"], clip["y"], clip["width"], clip["height"]]}
 
     (OUT / "rects.json").write_text(json.dumps(rects, indent=1))
     print("done")

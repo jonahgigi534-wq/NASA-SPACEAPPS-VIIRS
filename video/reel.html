@@ -20,14 +20,30 @@
   canvas#fx { position: absolute; left: 0; top: 0; }
   .word { display: inline-block; white-space: pre; will-change: transform, opacity; }
 
-  /* hook */
-  #hook { left: 0; right: 0; top: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-  #hook .kicker { font-size: 40px; font-weight: 500; color: #d9d4cc; letter-spacing: .5px; }
-  #hook .num { font-size: 260px; font-weight: 800; letter-spacing: -8px; line-height: 1; margin: 18px 0 6px;
-               background: linear-gradient(180deg, #ffd29a 0%, #fb923c 45%, #ea580c 100%);
-               -webkit-background-clip: text; background-clip: text; color: transparent; }
-  #hook .line { font-size: 54px; font-weight: 700; }
-  #hook .small { font-size: 32px; color: #a9a49c; margin-top: 26px; }
+  /* intro: what FireBridge is (real map, satellite sweep reveals the real 2011 detections) */
+  #intro { left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; background: #0c0d10; }
+  #i-world { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 1000px 520px; }
+  #i-world img { position: absolute; left: 0; top: -77px; width: 1920px; height: 1234px; }
+  #i-map { filter: brightness(.38) contrast(1.15) saturate(.35); }
+  #i-fire { filter: saturate(1.35) brightness(1.15) drop-shadow(0 0 10px rgba(255,120,30,.55)); }
+  #i-shade { position: absolute; inset: 0;
+             background: linear-gradient(90deg, rgba(12,13,16,.96) 0%, rgba(12,13,16,.86) 30%, rgba(12,13,16,0) 52%),
+                         radial-gradient(1400px 900px at 60% 45%, rgba(0,0,0,0) 55%, rgba(0,0,0,.55) 100%); }
+  #i-beam { position: absolute; top: 120px; width: 140px; height: 960px; margin-left: -70px;
+            background: linear-gradient(90deg, rgba(255,190,110,0), rgba(255,190,110,.22), rgba(255,190,110,0));
+            -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,.7) 60%, transparent 100%);
+            mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,.7) 60%, transparent 100%); }
+  #i-sat { position: absolute; top: 58px; width: 150px; height: 70px; margin-left: -75px; }
+  #i-ring { position: absolute; border-radius: 50%; border: 4px solid #fff; box-shadow: 0 0 24px rgba(255,160,80,.7); }
+  #i-label { position: absolute; font-size: 30px; font-weight: 700; white-space: nowrap; padding: 12px 20px; border-radius: 12px;
+             background: rgba(12,13,16,.86); border: 1px solid rgba(255,255,255,.18); }
+  #i-label small { display: block; font-size: 22px; font-weight: 500; color: #c9c4bc; margin-top: 4px; }
+  #i-text { position: absolute; left: 110px; top: 0; bottom: 0; width: 720px; display: flex; flex-direction: column; justify-content: center; }
+  #i-text .brand { display: flex; align-items: center; gap: 16px; font-size: 52px; font-weight: 800; letter-spacing: -1.5px; margin-bottom: 34px; }
+  #i-text .brand svg { width: 52px; height: 52px; fill: #fb923c; filter: drop-shadow(0 0 16px rgba(251,146,60,.5)); }
+  #i-text .head { font-size: 74px; font-weight: 800; line-height: 1.08; letter-spacing: -2px; }
+  #i-text .head .hl { color: #fb923c; }
+  #i-text .sub { font-size: 34px; color: #d9d4cc; margin-top: 30px; line-height: 1.35; font-weight: 500; }
 
   /* chart */
   #chart { left: 0; top: 0; width: 1920px; height: 1080px; }
@@ -61,8 +77,9 @@
           box-shadow: 0 0 0 9999px rgba(15,17,20,0); }
 
   /* captions */
-  #cap { left: 0; right: 0; top: 912px; height: 120px; display: flex; align-items: center; justify-content: center;
-         font-size: 50px; font-weight: 700; text-align: center; letter-spacing: -.3px; }
+  #cap { left: 0; right: 0; top: 906px; height: 132px; display: flex; flex-wrap: wrap; align-items: center; align-content: center;
+         justify-content: center; padding: 0 140px; font-size: 50px; font-weight: 700; text-align: center; letter-spacing: -.3px;
+         line-height: 1.18; }
   #cap .hl { color: #fb923c; }
 
   /* end card */
@@ -79,19 +96,38 @@
 <div id="stage">
   <canvas id="fx" width="1920" height="1080"></canvas>
 
-  <div id="hook" class="abs">
-    <div class="kicker" id="h-kicker"></div>
-    <div class="num" id="h-num">1.0×</div>
-    <div class="line" id="h-line"></div>
-    <div class="small" id="h-small"></div>
+  <div id="intro" class="abs">
+    <div id="i-world">
+      <img id="i-map" src="assets/clean_map.png" alt="">
+      <img id="i-fire" src="assets/clean_fire.png" alt="">
+      <div id="i-ring"></div>
+      <div id="i-label">Each square: fires seen from space<small>West Texas & northern Mexico, Apr–Jul 2011</small></div>
+    </div>
+    <div id="i-shade"></div>
+    <div id="i-beam"></div>
+    <svg id="i-sat" viewBox="0 0 150 70">
+      <g stroke="#cfd6df" stroke-width="1.2">
+        <rect x="4" y="22" width="44" height="26" rx="2" fill="#2b4f7e"/><line x1="18.6" y1="22" x2="18.6" y2="48"/><line x1="33.3" y1="22" x2="33.3" y2="48"/><line x1="4" y1="35" x2="48" y2="35"/>
+        <rect x="102" y="22" width="44" height="26" rx="2" fill="#2b4f7e"/><line x1="116.6" y1="22" x2="116.6" y2="48"/><line x1="131.3" y1="22" x2="131.3" y2="48"/><line x1="102" y1="35" x2="146" y2="35"/>
+        <line x1="48" y1="35" x2="58" y2="35"/><line x1="92" y1="35" x2="102" y2="35"/>
+      </g>
+      <rect x="58" y="20" width="34" height="30" rx="4" fill="#e8e4dc" stroke="#fff" stroke-width="1"/>
+      <rect x="66" y="50" width="18" height="6" rx="2" fill="#9aa3ad"/>
+      <circle cx="75" cy="60" r="4" fill="#fb923c"/>
+    </svg>
+    <div id="i-text">
+      <div class="brand"><svg viewBox="0 0 32 32"><path d="M16 2c2 6 9 9 9 17a9 9 0 0 1-18 0c0-5 3-7 4-11 1 3 3 4 3 4s-1-5 2-10z"/></svg><span id="i-brand">FireBridge</span></div>
+      <div class="head" id="i-head"></div>
+      <div class="sub" id="i-sub"></div>
+    </div>
   </div>
 
   <div id="chart" class="abs">
     <div class="ctitle" id="c-title"></div>
     <div class="legend" id="c-legend">
-      <span id="lg-m"><i style="background:#c3c8cf"></i>MODIS</span>
-      <span id="lg-v"><i style="background:#f97316"></i>VIIRS, raw</span>
-      <span id="lg-h"><i style="background:#60a5fa"></i>VIIRS, harmonized by FireBridge</span>
+      <span id="lg-m"><i style="background:#c3c8cf"></i>Older satellite (MODIS)</span>
+      <span id="lg-v"><i style="background:#f97316"></i>Newer satellite (VIIRS), as counted</span>
+      <span id="lg-h"><i style="background:#60a5fa"></i>Newer satellite, translated by FireBridge</span>
     </div>
     <svg id="c-svg" width="1620" height="640"></svg>
   </div>
@@ -114,14 +150,14 @@
     </div>
   </div>
 
-  <div id="cap" class="abs"></div>
+  <div id="cap" class="abs"><div id="cap-in"></div></div>
 
   <div id="end" class="abs">
     <div class="mark"><svg viewBox="0 0 32 32"><path d="M16 2c2 6 9 9 9 17a9 9 0 0 1-18 0c0-5 3-7 4-11 1 3 3 4 3 4s-1-5 2-10z"/></svg>
       <div class="wordmark">FireBridge</div></div>
     <div class="tag" id="e-tag"></div>
     <div class="url" id="e-url">firebridge.graycliff-49f97f4e.northcentralus.azurecontainerapps.io</div>
-    <div class="small" id="e-small">NASA Space Apps Challenge 2026 · Data: NASA FIRMS active fires (MODIS + VIIRS)</div>
+    <div class="small" id="e-small">NASA Space Apps Challenge 2026 · Data: NASA FIRMS active fires (MODIS + VIIRS) · Map: © OpenStreetMap contributors</div>
   </div>
 </div>
 
@@ -129,25 +165,27 @@
 // ------------------------------------------------------------------ timeline (seconds)
 const DURATION = 29.0;
 const T = {
-  hook: [0, 3.05], chart: [3.0, 9.65], logo: [9.6, 11.7], app: [11.45, 26.6], end: [26.4, DURATION],
+  intro: [0, 3.5], chart: [3.35, 9.65], logo: [9.6, 11.7], app: [11.45, 26.6], end: [26.4, DURATION],
 };
-// captions shown along the bottom (also written to video_subtitles.srt by render.py)
+// captions shown along the bottom (also written to the subtitle file by render.py)
 const CAPTIONS = [
-  [3.15, 4.95, "Two satellite eras: MODIS since 2001, VIIRS since 2012."],
-  [4.95, 7.35, "VIIRS sees 5–9× more hotspots, so the record <hl>jumps</hl>."],
-  [7.35, 9.5, "FireBridge puts VIIRS on the MODIS scale. <hl>2011 stands out again.</hl>"],
-  [11.95, 14.2, "Pick an area. See where it burned."],
-  [14.2, 17.55, "Replay the fire season, month by month."],
-  [17.65, 21.05, "A burning calendar for any area, <hl>2001 → today</hl>."],
+  [3.55, 5.0, "Two satellites made this record, and the older one is retiring."],
+  [5.0, 6.95, "The sharper new one counts 5–9× more, so the record <hl>breaks</hl>."],
+  [6.95, 8.3, "FireBridge translates both onto <hl>one scale</hl>."],
+  [8.3, 9.5, "Now 25 years of fire history can be compared fairly."],
+  [11.95, 14.2, "Pick an area on the map. See where it burned."],
+  [14.2, 17.55, "Replay a fire season, month by month."],
+  [17.65, 21.05, "A fire calendar: which months and years <hl>burned most</hl>."],
   [21.15, 23.15, "Is this month unusual? Compared with 20 years of normal."],
   [23.25, 25.25, "Each new fire ranked against every fire here since 2001."],
-  [25.35, 26.35, "Download hotspots as CSV, GeoJSON or KML."],
+  [25.35, 26.35, "Download the data for your own maps and reports."],
 ];
 // on-screen text outside the caption bar (for the subtitle file)
 const SCREEN_TEXT = [
-  [0.2, 3.0, "West Texas & northern Mexico, spring 2011: 11.6× its normal fire activity."],
-  [9.9, 11.6, "FireBridge: a harmonized fire calendar, 2001 → today."],
-  [26.7, 29.0, "FireBridge. One consistent fire record from MODIS + VIIRS. NASA Space Apps 2026."],
+  [0.3, 3.35, "FireBridge. See when and where fires burned, 2001 → today. Built from 25 years of satellite fire detections."],
+  [2.05, 3.35, "Each square: fires seen from space (West Texas & northern Mexico, Apr–Jul 2011)."],
+  [10.0, 11.5, "FireBridge: for fire managers, emergency responders and scientists."],
+  [26.7, 29.0, "FireBridge. Fire history from satellites, on one consistent scale, 2001 → today. NASA Space Apps 2026."],
 ];
 
 // ------------------------------------------------------------------ helpers
@@ -173,7 +211,9 @@ function kinetic(el, text, t0, t1, t, opt = {}) {
     el.innerHTML = "";
     parts.forEach((part) => {
       const hl = part.startsWith("<hl>");
-      part.replace(/<\/?hl>/g, "").split(/(\s+)/).forEach((w) => {
+      part.replace(/<\/?hl>/g, "").split(/( +)/).forEach((w) => {
+        if (!w) return;
+        if (/^ +$/.test(w)) { el.appendChild(document.createTextNode(" ")); return; }   // breakable space
         const s = document.createElement("span");
         s.className = "word" + (hl ? " hl" : ""); s.textContent = w; el.appendChild(s);
       });
@@ -181,7 +221,7 @@ function kinetic(el, text, t0, t1, t, opt = {}) {
   }
   const out = opt.noOut ? 0 : ramp(t, t1 - 0.28, t1);
   [...el.children].forEach((s, i) => {
-    const p = ramp(t, t0 + i * stagger / 2, t0 + i * stagger / 2 + dur);   // /2: spaces count as words
+    const p = ramp(t, t0 + i * stagger, t0 + i * stagger + dur);
     const e = easeOut(p);
     s.style.opacity = String(e * (1 - out));
     s.style.transform = `translateY(${(1 - e) * rise - out * 12}px)`;
@@ -287,31 +327,31 @@ function buildChart() {
   const sx = CH.x + i12 * slot - 1;
   CH.marker = el("line", { x1: sx, x2: sx, y1: CH.y - 10, y2: CH.y + CH.h, stroke: "#f97316", "stroke-width": 3, "stroke-dasharray": "8 8" });
   CH.markerT = el("text", { x: sx + 14, y: CH.y + 16, fill: "#fdba74", "font-size": 26, "font-weight": 700 });
-  CH.markerT.textContent = "2012: VIIRS takes over";
+  CH.markerT.textContent = "2012: newer satellite starts";
   const b11 = bars.find((b) => b.r.year === 2011);
   CH.b11 = b11;
   CH.anno = el("text", { x: b11.x + b11.bw, "text-anchor": "end", fill: "#fff", "font-size": 30, "font-weight": 800 });
   CH.anno.textContent = "2011";
   CH.anno2 = el("text", { x: b11.x + b11.bw, "text-anchor": "end", fill: "#d9d4cc", "font-size": 24, "font-weight": 600 });
-  CH.anno2.textContent = "record season";
+  CH.anno2.textContent = "record fire year";
 }
 function renderChart(t) {
   const a = window01(t, T.chart[0], T.chart[1], .3, .35);
   show($("chart"), a);
   if (a <= 0) return;
-  kinetic($("c-title"), "Hotspots per year · West Texas & northern Mexico", 3.05, 99, t, { noOut: true });
-  $("lg-m").style.opacity = ramp(t, 3.3, 3.6);
-  $("lg-v").style.opacity = ramp(t, 4.6, 4.9);
-  $("lg-h").style.opacity = ramp(t, 7.35, 7.7);
-  const morph = easeInOut(ramp(t, 7.35, 8.35));
+  kinetic($("c-title"), "Fires detected from space, per year · West Texas & northern Mexico", 3.45, 99, t, { noOut: true, stagger: .035 });
+  $("lg-m").style.opacity = ramp(t, 3.6, 3.9);
+  $("lg-v").style.opacity = ramp(t, 5.0, 5.3);
+  $("lg-h").style.opacity = ramp(t, 7.0, 7.35);
+  const morph = easeInOut(ramp(t, 7.0, 8.0));
   bars.forEach((b) => {
     const r = b.r; let val, col, grow;
-    if (!r.hasV) { grow = easeOutBack(ramp(t, 3.3 + b.i * .075, 3.3 + b.i * .075 + .5)); val = r.m; col = "#c3c8cf"; }
+    if (!r.hasV) { grow = easeOutBack(ramp(t, 3.6 + b.i * .075, 3.6 + b.i * .075 + .5)); val = r.m; col = "#c3c8cf"; }
     else {
       const k = b.i - 11;
-      grow = easeOutBack(ramp(t, 4.6 + k * .05, 4.6 + k * .05 + .5));
+      grow = easeOutBack(ramp(t, 5.0 + k * .05, 5.0 + k * .05 + .5));
       const kd = k * .035;
-      const mp = easeInOut(ramp(t, 7.35 + kd, 8.1 + kd));
+      const mp = easeInOut(ramp(t, 7.0 + kd, 7.75 + kd));
       val = lerp(r.v, r.h, mp);
       col = mp < 1 ? `rgb(${Math.round(lerp(249, 96, mp))},${Math.round(lerp(115, 165, mp))},${Math.round(lerp(22, 250, mp))})` : "#60a5fa";
     }
@@ -320,14 +360,14 @@ function renderChart(t) {
     b.top = CH.y + CH.h - h;
   });
   // 2011 highlight
-  const b = CH.b11, hi = ramp(t, 5.6, 6.0);
+  const b = CH.b11, hi = ramp(t, 5.9, 6.3);
   const pulse = (1 - morph) * hi;
   b.rect.setAttribute("fill", hi > 0 ? `rgb(${Math.round(lerp(195, 255, hi))},${Math.round(lerp(200, 255, hi))},${Math.round(lerp(207, 255, hi))})` : "#c3c8cf");
   CH.anno.setAttribute("y", b.top - 44); CH.anno2.setAttribute("y", b.top - 14);
   CH.anno.style.opacity = hi; CH.anno2.style.opacity = hi;
-  CH.anno2.textContent = t < 7.6 ? "record season… looks ordinary" : "record season";
-  CH.anno2.setAttribute("fill", t < 7.6 ? "#fdba74" : "#d9d4cc");
-  const mk = ramp(t, 4.55, 4.85);
+  CH.anno2.textContent = t < 7.4 ? "record fire year… now looks ordinary" : "record fire year: stands out again";
+  CH.anno2.setAttribute("fill", t < 7.4 ? "#fdba74" : "#93c5fd");
+  const mk = ramp(t, 4.95, 5.25);
   CH.marker.style.opacity = mk; CH.markerT.style.opacity = mk;
   void pulse;
 }
@@ -447,26 +487,46 @@ function renderApp(t) {
 }
 
 // ------------------------------------------------------------------ hook, logo, captions, end
-function renderHook(t) {
-  const a = 1 - ramp(t, 2.7, 3.05);
-  show($("hook"), a);
+// intro: satellite sweeps over the real map; the real Apr-Jul 2011 detections light up behind it
+const SHIFT = 250, SAT_X0 = 1010, SAT_X1 = 1780, SWEEP = [0.35, 2.15];
+const HOT = [1082, 694];   // a dense cluster, in clean_fire.png pixels (1975 x 1269)
+function renderIntro(t) {
+  const a = 1 - ramp(t, 3.2, 3.5);
+  show($("intro"), a);
   if (a <= 0) return;
-  kinetic($("h-kicker"), "West Texas & northern Mexico · spring 2011", 0.15, 99, t, { noOut: true });
-  const np = easeOut(ramp(t, 0.55, 1.75));
-  const numEl = $("h-num");
-  numEl.textContent = `${lerp(1, 11.6, np).toFixed(1)}×`;
-  numEl.style.opacity = ramp(t, 0.45, 0.7);
-  numEl.style.transform = `scale(${lerp(.82, 1, easeOutBack(ramp(t, .45, 1.1)))})`;
-  kinetic($("h-line"), "its normal fire activity", 1.15, 99, t, { noOut: true });
-  kinetic($("h-small"), "22,578 satellite fire detections in four months", 1.75, 99, t, { noOut: true, stagger: .03 });
-  $("hook").style.transform = `scale(${1 + ramp(t, 2.6, 3.05) * .06})`;
-  $("hook").style.filter = t > 2.7 ? `blur(${ramp(t, 2.7, 3.05) * 10}px)` : "none";
+  const z = 1 + .06 * easeInOut(ramp(t, 0, 3.5));
+  const world = $("i-world");
+  world.style.transform = `translateX(${SHIFT}px) scale(${z})`;
+  const sp = ramp(t, SWEEP[0], SWEEP[1]);
+  const satX = lerp(SAT_X0, SAT_X1, easeInOut(sp) * .85 + sp * .15);
+  // world x under the satellite (undo the shift and the zoom around transform-origin 1000px)
+  const wx = 1000 + (satX - SHIFT - 1000) / z;
+  const reveal = sp <= 0 ? 0 : sp >= 1 ? 1920 : wx;
+  $("i-fire").style.clipPath = `inset(0 ${Math.max(0, 1920 - reveal)}px 0 0)`;
+  const satA = window01(t, 0.2, 2.6, .25, .4);
+  $("i-sat").style.left = `${satX}px`; $("i-sat").style.opacity = satA;
+  $("i-sat").style.transform = `rotate(${-6 + sp * 8}deg)`;
+  $("i-beam").style.left = `${satX}px`; $("i-beam").style.opacity = satA * window01(t, SWEEP[0], SWEEP[1] + .1, .15, .3);
+  // callout on one dense cluster
+  const s = 1920 / 1975, hx = HOT[0] * s, hy = HOT[1] * s - 77;
+  const ra = window01(t, 2.05, 3.5, .25, .3), rp = easeOutBack(ramp(t, 2.05, 2.45)), R = 46 + (1 - rp) * 40;
+  Object.assign($("i-ring").style, { left: `${hx - R}px`, top: `${hy - R}px`, width: `${2 * R}px`, height: `${2 * R}px` });
+  show($("i-ring"), ra);
+  const lab = $("i-label");
+  lab.style.left = `${hx - 250}px`; lab.style.top = `${hy + 64}px`;
+  lab.style.transform = `translateY(${(1 - easeOut(ramp(t, 2.15, 2.5))) * -16}px)`;
+  show(lab, window01(t, 2.15, 3.5, .25, .3));
+  // text: what FireBridge is
+  $("i-text").querySelector(".brand").style.opacity = easeOut(ramp(t, 0.2, 0.55));
+  $("i-text").querySelector(".brand").style.transform = `translateY(${(1 - easeOut(ramp(t, 0.2, 0.55))) * 20}px)`;
+  kinetic($("i-head"), "See <hl>when and where</hl> fires burned, 2001 → today.", 0.5, 99, t, { noOut: true, stagger: .07, rise: 40 });
+  kinetic($("i-sub"), "Built from 25 years of satellite fire detections.", 1.35, 99, t, { noOut: true, stagger: .05 });
 }
 function renderLogo(t) {
   const a = window01(t, 10.35, 11.5, .35, .3);
   show($("logo"), Math.max(a, t >= 9.6 && t < 10.4 ? 0.0001 : 0));   // stay laid out for sampling
   document.querySelector("#logo .mark").style.opacity = ramp(t, 10.35, 10.7);
-  kinetic($("l-sub"), "A harmonized fire calendar, 2001 → today", 10.6, 11.5, t, { stagger: .05 });
+  kinetic($("l-sub"), "For fire managers, emergency responders and scientists", 10.6, 11.5, t, { stagger: .05 });
   $("logo").style.transform = `scale(${1 - ramp(t, 11.2, 11.5) * .08})`;
 }
 function renderCaption(t) {
@@ -474,7 +534,7 @@ function renderCaption(t) {
   const el = $("cap");
   if (!c) { el.style.opacity = "0"; return; }
   el.style.opacity = "1";
-  kinetic(el, c[2], c[0], c[1], t, { stagger: .06, rise: 26 });
+  kinetic($("cap-in"), c[2], c[0], c[1], t, { stagger: .06, rise: 26 });
 }
 function renderEnd(t) {
   const a = ramp(t, 26.55, 26.9) * (1 - ramp(t, 28.6, 29.0));
@@ -482,7 +542,7 @@ function renderEnd(t) {
   if (a <= 0) return;
   const p = easeOutBack(ramp(t, 26.55, 27.15));
   document.querySelector("#end .mark").style.transform = `scale(${lerp(.85, 1, p)})`;
-  kinetic($("e-tag"), "One consistent fire record from MODIS + VIIRS, 2001 → today", 26.75, 99, t, { noOut: true, stagger: .045 });
+  kinetic($("e-tag"), "Fire history from satellites, on one consistent scale, 2001 → today", 26.75, 99, t, { noOut: true, stagger: .045 });
   $("e-url").style.opacity = easeOut(ramp(t, 27.3, 27.65));
   $("e-url").style.transform = `translateY(${(1 - easeOut(ramp(t, 27.3, 27.65))) * 20}px)`;
   $("e-small").style.opacity = ramp(t, 27.6, 27.95);
@@ -491,10 +551,10 @@ function renderEnd(t) {
 // ------------------------------------------------------------------ render(t)
 function render(t) {
   ctx.clearRect(0, 0, 1920, 1080);
-  const emberA = Math.max(1 - ramp(t, 11.3, 12.0), ramp(t, 26.3, 26.9)) * (1 - ramp(t, 28.6, 29));
+  const emberA = Math.max(Math.min(ramp(t, 3.3, 3.8), 1 - ramp(t, 11.3, 12.0)), ramp(t, 26.3, 26.9)) * (1 - ramp(t, 28.6, 29));
   drawEmbers(t, emberA);
   drawLogoParticles(t);
-  renderHook(t); renderChart(t); renderLogo(t); renderApp(t); renderCaption(t); renderEnd(t);
+  renderChart(t); renderLogo(t); renderApp(t); renderCaption(t); renderEnd(t); renderIntro(t);
   // fade from/to black
   $("stage").style.filter = `brightness(${Math.min(ramp(t, 0, .25), 1 - ramp(t, 28.75, 29.0))})`;
 }
@@ -511,6 +571,8 @@ async function boot() {
     const im = new Image(); im.src = `assets/${n}.png`; im.decoding = "sync";
     im.onload = () => im.decode().then(res, res); im.onerror = res; IMG[n] = im; view.insertBefore(im, $("ring"));
   })));
+  await Promise.all(["i-map", "i-fire"].map((id) => { const im = $(id); return im.complete ? im.decode().catch(() => {}) :
+    new Promise((res) => { im.onload = () => im.decode().then(res, res); im.onerror = res; }); }));
   show($("logo"), 1); sampleWordmark();
   window.READY = true;
   const q = new URLSearchParams(location.search);

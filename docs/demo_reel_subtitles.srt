@@ -1,47 +1,55 @@
 1
-00:00:00,200 --> 00:00:03,000
-West Texas & northern Mexico, spring 2011: 11.6× its normal fire activity.
+00:00:00,300 --> 00:00:03,350
+FireBridge. See when and where fires burned, 2001 → today. Built from 25 years of satellite fire detections.
 
 2
-00:00:03,150 --> 00:00:04,950
-Two satellite eras: MODIS since 2001, VIIRS since 2012.
+00:00:02,050 --> 00:00:03,350
+Each square: fires seen from space (West Texas & northern Mexico, Apr–Jul 2011).
 
 3
-00:00:04,950 --> 00:00:07,350
-VIIRS sees 5–9× more hotspots, so the record jumps.
+00:00:03,550 --> 00:00:05,000
+Two satellites made this record, and the older one is retiring.
 
 4
-00:00:07,350 --> 00:00:09,500
-FireBridge puts VIIRS on the MODIS scale. 2011 stands out again.
+00:00:05,000 --> 00:00:06,950
+The sharper new one counts 5–9× more, so the record breaks.
 
 5
-00:00:09,900 --> 00:00:11,600
-FireBridge: a harmonized fire calendar, 2001 → today.
+00:00:06,950 --> 00:00:08,300
+FireBridge translates both onto one scale.
 
 6
-00:00:11,950 --> 00:00:14,200
-Pick an area. See where it burned.
+00:00:08,300 --> 00:00:09,500
+Now 25 years of fire history can be compared fairly.
 
 7
-00:00:14,200 --> 00:00:17,550
-Replay the fire season, month by month.
+00:00:10,000 --> 00:00:11,500
+FireBridge: for fire managers, emergency responders and scientists.
 
 8
-00:00:17,650 --> 00:00:21,050
-A burning calendar for any area, 2001 → today.
+00:00:11,950 --> 00:00:14,200
+Pick an area on the map. See where it burned.
 
 9
+00:00:14,200 --> 00:00:17,550
+Replay a fire season, month by month.
+
+10
+00:00:17,650 --> 00:00:21,050
+A fire calendar: which months and years burned most.
+
+11
 00:00:21,150 --> 00:00:23,150
 Is this month unusual? Compared with 20 years of normal.
 
-10
+12
 00:00:23,250 --> 00:00:25,250
 Each new fire ranked against every fire here since 2001.
 
-11
+13
 00:00:25,350 --> 00:00:26,350
-Download hotspots as CSV, GeoJSON or KML.
+Download the data for your own maps and reports.
 
-12
+14
 00:00:26,700 --> 00:00:29,000
-FireBridge. One consistent fire record from MODIS + VIIRS. NASA Space Apps 2026.
+FireBridge. Fire history from satellites, on one consistent scale, 2001 → today. NASA Space Apps 2026.
