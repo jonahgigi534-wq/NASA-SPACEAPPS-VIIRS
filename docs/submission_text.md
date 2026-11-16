@@ -5,11 +5,14 @@ Fill in the remaining TBD (video link) and the team names before submitting. All
 ## Project name
 FireBridge
 
-## Short summary (one or two sentences)
-FireBridge joins NASA's MODIS and VIIRS fire satellites into one consistent record of fire
-activity from 2001 to today, and turns it into a burning activity calendar for any area you
-draw on a map: fire seasons, unusual years, this month versus the historical median, and a CSV
-of every hotspot.
+## Summary (form field, 50-200 words)
+FireBridge is a free website that turns 25 years of NASA satellite fire detections into one consistent fire history for any area you pick on a map.
+
+The challenge is that the record is split. MODIS has tracked fires since 2001 and is retiring. Its successor, VIIRS, counts 5 to 9 times more hotspots for the same fires, so joining the two makes fire seem to explode in 2012. FireBridge fixes that. It learns how the two sensors match during the years they flew together (2012 to 2018), separately for each region and land type, then translates VIIRS onto the MODIS scale. On years it never saw, the result lands within 1% of MODIS.
+
+From that one record, FireBridge builds a burning activity calendar for any area: the usual fire season, the worst years, this month versus normal, and how the latest fire ranks against every fire since 2001. Live NASA FIRMS data updates it every hour, and every hotspot can be downloaded.
+
+That matters because fire agencies need to know whether this season is unusual. Without harmonization, they lose their 25-year baseline as MODIS shuts down.
 
 ## Project Details (form field)
 FireBridge is a free website that shows when and where fires have burned, from 2001 to today. Draw an area on a map (or type coordinates, or search for a town), pick your dates, and FireBridge gives you a burning activity calendar of every month since 2001. It shows the area's usual fire season, its highest-risk months, how this month compares with the 2003-2022 normal, and how the latest fire ranks against every fire there since 2001. A map replays the fire season month by month, and everything downloads as CSV, GeoJSON or KML.
