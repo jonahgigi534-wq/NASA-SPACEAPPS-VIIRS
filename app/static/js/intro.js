@@ -1,6 +1,6 @@
 // intro.js: the short "Here's the deal" opening shown before the dashboard.
 // Big lines appear word by word on a light panel, then the panel lifts off the page. The
-// dashboard loads underneath while it plays. Shown once per browser session; skipped for shared
+// dashboard loads underneath while it plays. Shown on every load of the page; skipped for shared
 // links (#...), sample-data mode, ?intro=0 and automated browsers (the site checks and the video
 // recorder). ?intro=1 always shows it.
 // The one number here (over 7x) is the raw VIIRS bias on the test years in results/metrics.json
@@ -9,13 +9,10 @@
   const root = document.getElementById("intro");
   if (!root) return;
   const params = new URLSearchParams(location.search);
-  const SEEN_KEY = "fb-intro-seen";
-  const seen = () => { try { return sessionStorage.getItem(SEEN_KEY) === "1"; } catch { return false; } };
-  const markSeen = () => { try { sessionStorage.setItem(SEEN_KEY, "1"); } catch { /* private mode */ } };
 
   const forced = params.get("intro") === "1";
   const skip = params.get("intro") === "0" || params.has("mock") || location.hash.length > 1
-    || navigator.webdriver || seen();
+    || navigator.webdriver;
   if (skip && !forced) { root.remove(); return; }
 
   // *word* marks the accent colour; "/" is a line break
@@ -27,6 +24,7 @@
     "Parece que el fuego / se disparó. *No* *fue* *así.*",
     "Las cámaras cambiaron. / *Arreglamos* *las* *cuentas.*",
     "Un solo registro",
+    "Esto es *FireBridge.*",
   ] : [
     "Here's the deal",
     "Satellites have watched / *fires* since 2000",
@@ -34,6 +32,7 @@
     "So it looks like fire / exploded. *It* *didn't.*",
     "The cameras changed. / *We* *fixed* *the* *math.*",
     "One fair record",
+    "This is *FireBridge.*",
   ];
   const SKIP_LABEL = isSpanish ? "Saltar la introducción" : "Skip intro";
 
@@ -62,7 +61,6 @@
   function finish() {
     if (done) return;
     done = true;
-    markSeen();
     root.classList.add("lift");
     document.documentElement.classList.remove("intro-on");
     setTimeout(() => root.remove(), LIFT_MS + 100);
