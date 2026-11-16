@@ -11,39 +11,22 @@ activity from 2001 to today, and turns it into a burning activity calendar for a
 draw on a map: fire seasons, unusual years, this month versus the historical median, and a CSV
 of every hotspot.
 
-## Project details / how it meets the challenge
-Satellites have tracked active-fire hotspots for more than 20 years, but the record is split
-between MODIS (1 km pixels, 2000 onward, with data collection planned to end in 2027) and VIIRS
-(375 m pixels, from 2012), which reports far more hotspots for the same fires: on our test years,
-raw VIIRS counts are +659.69% higher than MODIS Aqua. Put end to end, the two records show a fake
-explosion of fire in 2012.
+## Project Details (form field)
+FireBridge is a free website that turns 25 years of NASA satellite fire detections into one consistent fire history for any place on Earth's surface that you choose. You draw an area on a map (or type coordinates, or search a town), pick dates, and get a burning activity calendar of every month since 2001, the area's usual fire season and high-risk months, how this month compares with the 2003-2022 normal, and how the latest fire ranks against every fire there since 2001. A map replays the fire season month by month, and everything downloads as CSV, GeoJSON or KML.
 
-**Harmonization.** We translate VIIRS hotspot counts into MODIS-equivalent counts using quantile
-mapping, learned from 2012–2018 when MODIS Aqua and VIIRS S-NPP flew nearly the same orbit,
-separately for each region, land-cover type and day/night, then scaled to the full Terra + Aqua
-record. On years the method never saw (2019–2026) its typical monthly error is 971 hotspots per
-month against 1,212 for one global ratio, with a bias of −0.88% (raw VIIRS: +659.69%). On NOAA-20,
-a satellite never used in fitting, the error is 882 against 1,206. We report where it struggles
-(the Amazon, slightly high in Texas) and why.
+**How it works.** The record comes from two instruments. MODIS (Terra and Aqua, 2001 onward) is retiring; its successor VIIRS (from 2012) has sharper pixels and reports 5 to 9 times more hotspots for the same fires, so joining the two as-is makes fire seem to explode in 2012. We learn how the two relate during 2012-2018, when MODIS Aqua and VIIRS S-NPP flew nearly the same orbit, using quantile mapping fitted separately for each region, land-cover type (from NASA's MODIS land cover product) and day or night. Then we translate every VIIRS detection onto the MODIS scale. On years the method never saw (2019 onward) the harmonized record is within 1% of MODIS overall (raw VIIRS: +660%), and within 3% on NOAA-20, a satellite we never used for fitting. An independent check against NASA's MODIS burned-area product shows the 2012 jump is gone. A live NASA FIRMS feed refreshes the current month every hour, gas flares and other static heat sources are filtered out, and days with no satellite data are shown as missing, never as zero fire.
 
-**The web application.** Users draw a rectangle, polygon or circle, type coordinates or search a
-place name, and pick dates. They get key figures and a plain-language summary; a month-by-year
-(or week-by-year) burning calendar from 2001 to today with accessible, colorblind-safe color
-ramps (counts or anomaly vs normal); fire on the map, replayable month by month; the months and
-weeks that see the most fire, the fire season and the long-term trend; the busiest years; and
-the current month compared with the median for the same days, using live FIRMS data refreshed
-hourly. To answer "how a current fire compares with previous ones", hotspots are grouped into
-fire clusters and the latest is ranked against every cluster since 2001 (in northern New Mexico
-the largest is the 2022 Hermits Peak / Calf Canyon fire). An "unusual right now" list points to
-the places furthest above normal this month. Missing satellite data is shown as missing, never as
-zero fire. Everything can be downloaded: the hotspots in the search as CSV, GeoJSON or KML, the
-analytics table, every chart as PNG, and a one-page printable briefing; any view can be shared as
-a link. A toggle shows the raw MODIS and raw VIIRS records, so anyone can see the 2012 jump
-disappear. Judges can follow a two-minute tour of every brief item at /judges on the site.
+**Benefits and intended impact.** As MODIS retires, fire agencies risk losing their 25-year baseline. FireBridge keeps it: an emergency manager can see in seconds whether this month is unusual, a land manager can plan around the real fire season, and a scientist can study trends without a fake jump in 2012. An "unusual right now" list points to the places furthest above normal this month, which supports early warning.
 
-**Who it's for.** Early-warning and emergency responders, firefighters, land managers and
-scientists who need to know quickly whether this season is unusual, when fire is most likely,
-and how today compares with the past 25 years.
+**Creativity.** Most comparisons use one global ratio between sensors. We match them per region and per land type, which roughly halves the error in two of our three test regions (in the Amazon, one ratio does slightly better), and we group hotspots into fire clusters so a new fire can be ranked against every past fire, not just past months. The site is map-first like a weather app, explains every number in plain language, and offers a beta Spanish interface (the challenge comes from Argentina's space agency, CONAE).
+
+**Tools.** Python (pandas, NumPy, SciPy, DuckDB over Parquet, rasterio) for the pipeline and statistics. FastAPI for the web API. Plain HTML, CSS and JavaScript with Leaflet (maps), D3 and Chart.js (charts) for the website. Docker on Azure Container Apps for hosting, the data on Hugging Face, GitHub Actions for tests on every push, and Playwright for an automated browser check of every feature. No special hardware: laptops and free cloud tiers. We used Claude Code as a coding assistant; the team reviewed and ran everything.
+
+**Factors we considered.**
+- *Scientific honesty:* we validate on held-out years and an unused satellite, and publish where it struggles: Texas runs about 6% high, and MODIS's own orbit drift after 2022. A fit from one region does not carry over to another, so each new region gets its own fit; the 2012-2018 overlap exists everywhere, so this is feasible worldwide.
+- *Accessibility:* colorblind-safe color ramps, screen-reader data tables, keyboard navigation, phone layouts.
+- *Real-world use:* shareable links, a one-page printable briefing, standard GIS file formats.
+- *Reliability:* pinned library versions, a pinned dataset version, 133 automated checks that every number on the site matches the data.
 
 ## NASA data used
 - NASA FIRMS MODIS Collection 6.1 active fires (Terra, Aqua): MCD14ML archive
