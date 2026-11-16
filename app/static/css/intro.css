@@ -1,5 +1,6 @@
 /* intro.css: the short "Here's the deal" opening shown before the dashboard (see js/intro.js).
-   A light panel covers the page, a few big lines appear word by word, then the panel lifts. */
+   A light panel covers the page, a few big lines appear word by word and burn away, then the
+   page burns from the centre outward (js/burn.js) to reveal the globe. */
 @font-face {
   font-family: "Open Runde";            /* OFL-1.1, served by Fontsource on jsDelivr */
   font-weight: 700; font-style: normal; font-display: swap;
@@ -25,8 +26,13 @@ html.intro-on { overflow: hidden; }
   transition: transform 1s cubic-bezier(.76, 0, .24, 1);
   will-change: transform;
 }
-.intro.lift .intro-panel { transform: translateY(-100%); }
-.intro.lift { pointer-events: none; }
+.intro.burning { pointer-events: none; }
+.intro.burning .intro-skip { opacity: 0; transition: opacity .2s ease; }
+.intro-panel.on-fire { background: transparent; box-shadow: none; }
+.intro.fade { opacity: 0; transition: opacity .45s ease; }
+/* the burning page (drawn at low resolution, smoothed up) and the sparks above everything */
+.fb-page-fire { position: absolute; top: 128px; left: 0; width: 100%; height: calc(100% - 128px); display: block; }
+.intro .fb-sparks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
 
 .intro-stage {
   position: absolute; inset: 128px 0 0 0;
@@ -68,8 +74,6 @@ html.intro-on { overflow: hidden; }
 .intro-skip:focus-visible { outline: 2px solid #ed5a0c; outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .intro-panel { transition: opacity .3s ease; }
-  .intro.lift .intro-panel { transform: none; opacity: 0; }
   .intro-line, .intro-line.out { transform: none; filter: none; }
   .intro-line .w { transform: none; filter: none; transition: opacity .3s ease; }
   .intro-loading i { animation: none; }

@@ -26,6 +26,7 @@
       <button type="button" class="intro-skip">Skip intro</button>
     </div>
   </div>
+  <script src="js/burn.js"></script>
   <script src="js/intro.js"></script>
   <!-- 3D globe under the opening story: pick a region, then it flies into the dashboard (js/globe.js) -->
   <div id="globe" class="globe" role="dialog" aria-modal="true" aria-labelledby="globe-title" hidden>
@@ -215,6 +216,24 @@
         <p id="range-label" class="muted"></p>
       </div>
 
+      <section class="guide" aria-labelledby="guide-title">
+        <h3 id="guide-title">New here? How to read this in 3 steps</h3>
+        <ol class="guide-steps">
+          <li><b>Pick a place.</b> Click a glowing square on the map to zoom in, choose a big fire event, or draw your own box.</li>
+          <li><b>Read the big number.</b> It is how many fire hotspots satellites spotted there in your dates.</li>
+          <li><b>Check “vs normal”.</b> 1× is a normal year. Above 1× means more fire than usual, below means less.</li>
+        </ol>
+        <details class="guide-words">
+          <summary>What do the words mean?</summary>
+          <dl>
+            <dt>Hotspot</dt><dd>One small patch of ground a satellite saw burning as it passed over. One big fire makes many hotspots.</dd>
+            <dt>MODIS and VIIRS</dt><dd>The two satellite fire cameras. MODIS has watched since 2000. VIIRS arrived in 2012 and is sharper, so it counts many more hotspots for the same fires.</dd>
+            <dt>Harmonized</dt><dd>Our fix: VIIRS counts translated onto the MODIS scale, so 2001 to today is one fair record with no fake jump in 2012.</dd>
+            <dt>Normal</dt><dd>The middle value (median) for the same dates in past years. Press any “?” button for more help.</dd>
+          </dl>
+        </details>
+      </section>
+
       <div id="key-figures" class="key-figures" aria-live="polite">
         <div class="kf"><span class="kf-label" id="kf-total-label">Hotspots in range</span><span class="kf-value" id="kf-total">–</span><span class="kf-sub" id="kf-total-sub"></span></div>
         <div class="kf"><span class="kf-label">vs normal</span><span class="kf-value" id="kf-pct">–</span><span class="kf-sub" id="kf-pct-sub">of the median</span></div>
@@ -244,6 +263,7 @@
         <button role="tab" id="tab-now" aria-controls="panel-now" aria-selected="false" tabindex="-1">Now vs history</button>
         <button role="tab" id="tab-fires" aria-controls="panel-fires" aria-selected="false" tabindex="-1">Fires vs past</button>
       </div>
+      <p class="tabs-help">Four ways to look at the same place. <b>Burning calendar</b>: every month since 2001. <b>Patterns</b>: when fire usually happens. <b>Now vs history</b>: this month against past years. <b>Fires vs past</b>: the latest fire against every fire here.</p>
 
       <!-- Burning calendar -->
       <div role="tabpanel" id="panel-calendar" aria-labelledby="tab-calendar" class="tabpanel">
@@ -378,5 +398,6 @@
   <script src="js/map.js"></script>
   <script src="js/app.js"></script>
   <script src="js/hero.js"></script>
+  <script src="js/help.js"></script>
 </body>
 </html>

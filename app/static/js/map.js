@@ -54,9 +54,19 @@ const MAP = (() => {
     if (r <= 0.87) return `<b class="pop-cool">${Math.round(r * 100)}% of normal</b>: quieter than usual.`;
     return "<b>About normal</b> for these dates.";
   };
+  // a click zooms in on the spot first (the squares get finer as you zoom), then explains it
+  const CLICK_ZOOM_STEP = 2, CLICK_ZOOM_MAX = 8;
   function cellPopup(e) {
+    if (drawing || !grid || !grid.at(e.latlng)) return;
+    const z = map.getZoom();
+    if (z >= CLICK_ZOOM_MAX) { openCellPopup(e.latlng); return; }
+    map.closePopup();
+    map.once("moveend", () => openCellPopup(e.latlng));
+    map.flyTo(e.latlng, Math.min(z + CLICK_ZOOM_STEP, CLICK_ZOOM_MAX), { duration: 0.8 });
+  }
+  function openCellPopup(latlng) {
     if (drawing || !grid) return;
-    const c = grid.at(e.latlng);
+    const c = grid.at(latlng);
     if (!c) return;
     const d = grid.deg, half = d / 2;
     const lat = c.lat.toFixed(2), lon = c.lon.toFixed(2);
@@ -77,7 +87,7 @@ const MAP = (() => {
     });
     if (tip) map.closeTooltip(tip);
     L.popup({ className: "fire-popup", maxWidth: 280, minWidth: 240, offset: [0, -6], autoPanPadding: [40, 90] })
-      .setLatLng(e.latlng).setContent(box).openOn(map);
+      .setLatLng(latlng).setContent(box).openOn(map);
   }
 
   function labelFor(type) {

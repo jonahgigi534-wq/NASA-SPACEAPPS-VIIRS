@@ -1,6 +1,7 @@
 // intro.js: the short "Here's the deal" opening shown before the dashboard.
-// Big lines appear word by word on a light panel, then the panel lifts off the page. The
-// dashboard loads underneath while it plays. Shown on every load and every reload. Skipped when
+// Big lines appear word by word on a light panel. Each old line burns away (js/burn.js) before
+// the next one, and at the end the whole page burns from the centre outward to reveal the globe
+// ("Where do you want to look?") underneath. The dashboard loads underneath while it plays. Shown on every load and every reload. Skipped when
 // someone opens a shared link (#...) fresh, but not when they reload one: the app writes the
 // current view into #... itself, so every reload has one. Also skipped in sample-data mode, with
 // ?intro=0 and in automated browsers (the site checks and the video recorder). ?intro=1 forces it.
@@ -31,7 +32,10 @@
   ];
   const SKIP_LABEL = "Skip intro";
 
-  const LOADING_MS = 900, STAGGER_MS = 75, HOLD_MS = 1500, FIRST_HOLD_MS = 1300, OUT_MS = 420, LIFT_MS = 1000;
+  const LOADING_MS = 900, STAGGER_MS = 75, HOLD_MS = 1500, FIRST_HOLD_MS = 1300, OUT_MS = 420;
+  const LINE_BURN_MS = 900, PAGE_BURN_MS = 1800, SKIP_BURN_MS = 1000, FADE_MS = 450, PAPER = "#f7f7f7";
+  const calm = !window.FireBurn || (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+  const panel = root.querySelector(".intro-panel");
   const stage = root.querySelector(".intro-stage");
   const loading = root.querySelector(".intro-loading");
   const skipBtn = root.querySelector(".intro-skip");
@@ -53,12 +57,29 @@
     return p;
   }
 
-  function finish() {
+  // the old line burns away (or just fades, with reduced motion)
+  function burnLine(line) {
+    line.classList.add("burnt");
+    if (calm) { line.classList.add("out"); return wait(OUT_MS); }
+    return FireBurn.line(line, LINE_BURN_MS, root);
+  }
+
+  // the end: the page catches fire in the middle and burns outward, leaving the globe
+  async function finish(skipped) {
     if (done) return;
     done = true;
-    root.classList.add("lift");
     document.documentElement.classList.remove("intro-on");
-    setTimeout(() => root.remove(), LIFT_MS + 100);
+    root.classList.add("burning");
+    if (calm) { root.classList.add("fade"); setTimeout(() => root.remove(), FADE_MS + 100); return; }
+    const burnMs = skipped === true ? SKIP_BURN_MS : PAGE_BURN_MS;
+    const fallback = setTimeout(() => root.remove(), burnMs + 3000);   // in case frames stop (hidden tab)
+    const current = stage.querySelector(".intro-line:not(.burnt)");
+    if (current) { burnLine(current); await wait(skipped === true ? 120 : 300); }
+    const burning = FireBurn.page(panel, burnMs, PAPER, root);
+    panel.classList.add("on-fire");              // the canvas now draws the paper; the panel goes clear
+    await burning;
+    clearTimeout(fallback);
+    root.remove();
   }
 
   async function play() {
@@ -72,9 +93,8 @@
       void line.offsetWidth;                                   // start the transitions from the hidden state
       words.forEach((w, k) => setTimeout(() => w.classList.add("in"), k * STAGGER_MS));
       await wait(words.length * STAGGER_MS + (i === 0 ? FIRST_HOLD_MS : HOLD_MS));
-      if (i === LINES.length - 1) break;                       // the last line rides up with the panel
-      line.classList.add("out");
-      await wait(OUT_MS);
+      if (i === LINES.length - 1) break;                       // the last line burns with the page
+      await burnLine(line);
       line.remove();
     }
     finish();
@@ -87,8 +107,8 @@
   root.appendChild(sr);
 
   skipBtn.textContent = SKIP_LABEL;
-  skipBtn.addEventListener("click", finish);
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") finish(); });
+  skipBtn.addEventListener("click", () => finish(true));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") finish(true); });
   document.documentElement.classList.add("intro-on");
   root.hidden = false;
   play();

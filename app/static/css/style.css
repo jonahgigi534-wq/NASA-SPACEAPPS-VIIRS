@@ -275,6 +275,7 @@ details.compare { background: var(--surface); border-radius: var(--radius); box-
 details.compare summary { cursor: pointer; font-weight: 600; font-size: 13.5px; }
 .compare-form { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin: 10px 0; }
 @media print { details.compare { display: none !important; } }
+@media print { .guide, .tabs-help, .fb-info { display: none !important; } }
 .tour td { vertical-align: top; line-height: 1.45; }
 .tour td:first-child { width: 34%; font-weight: 600; }
 .tour a { font-weight: 600; }
