@@ -12,7 +12,7 @@ draw on a map: fire seasons, unusual years, this month versus the historical med
 of every hotspot.
 
 ## Project Details (form field)
-FireBridge is a free website that shows when and where fires have burned, anywhere you choose, from 2001 to today. Draw an area on a map (or type coordinates, or search for a town), pick your dates, and FireBridge gives you a burning activity calendar of every month since 2001. It shows the area's usual fire season, its highest-risk months, how this month compares with the 2003-2022 normal, and how the latest fire ranks against every fire there since 2001. A map replays the fire season month by month, and everything downloads as CSV, GeoJSON or KML.
+FireBridge is a free website that shows when and where fires have burned, from 2001 to today. Draw an area on a map (or type coordinates, or search for a town), pick your dates, and FireBridge gives you a burning activity calendar of every month since 2001. It shows the area's usual fire season, its highest-risk months, how this month compares with the 2003-2022 normal, and how the latest fire ranks against every fire there since 2001. A map replays the fire season month by month, and everything downloads as CSV, GeoJSON or KML.
 
 How it works:
 The record comes from two satellite instruments. MODIS (on Terra and Aqua, since 2001) is retiring. Its successor, VIIRS (since 2012), has sharper pixels and reports 5 to 9 times more hotspots for the same fires. If you join the two records as they are, fire seems to explode in 2012. That jump is fake.
