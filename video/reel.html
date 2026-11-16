@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FireBridge demo reel</title>
+<!--
+  FireBridge demo reel: a deterministic animation. render(t) draws the frame at t seconds.
+  Open in a browser to watch it loop (add ?t=12.5 to freeze a frame). video/render.py turns it
+  into video. App footage = real screenshots of the live site (video/capture.py); chart numbers =
+  the live API's /api/timeseries (video/assets/timeseries.json). No AI images, no NASA logos.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=block" rel="stylesheet">
+<style>
+  html, body { margin: 0; background: #0f1114; overflow: hidden; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; color: #f4f2ee;
+           font-family: Inter, 'Segoe UI', Arial, sans-serif;
+           background: radial-gradient(1200px 700px at 50% 40%, #1d2026 0%, #121417 60%, #0c0d10 100%); }
+  .abs { position: absolute; }
+  canvas#fx { position: absolute; left: 0; top: 0; }
+  .word { display: inline-block; white-space: pre; will-change: transform, opacity; }
+
+  /* hook */
+  #hook { left: 0; right: 0; top: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  #hook .kicker { font-size: 40px; font-weight: 500; color: #d9d4cc; letter-spacing: .5px; }
+  #hook .num { font-size: 260px; font-weight: 800; letter-spacing: -8px; line-height: 1; margin: 18px 0 6px;
+               background: linear-gradient(180deg, #ffd29a 0%, #fb923c 45%, #ea580c 100%);
+               -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #hook .line { font-size: 54px; font-weight: 700; }
+  #hook .small { font-size: 32px; color: #a9a49c; margin-top: 26px; }
+
+  /* chart */
+  #chart { left: 0; top: 0; width: 1920px; height: 1080px; }
+  #chart .ctitle { position: absolute; left: 210px; top: 120px; font-size: 30px; font-weight: 600; color: #d9d4cc; }
+  #chart .legend { position: absolute; left: 210px; top: 168px; font-size: 24px; color: #bdb8b0; display: flex; gap: 34px; }
+  #chart .legend span { display: inline-flex; align-items: center; gap: 10px; }
+  #chart .legend i { display: inline-block; width: 20px; height: 20px; border-radius: 4px; }
+  #chart svg { position: absolute; left: 150px; top: 215px; overflow: visible; }
+
+  /* logo */
+  #logo { left: 0; right: 0; top: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  #logo .mark { display: flex; align-items: center; gap: 30px; }
+  #logo .mark svg { width: 128px; height: 128px; fill: #fb923c; filter: drop-shadow(0 0 30px rgba(251,146,60,.45)); }
+  #logo .wordmark { font-size: 160px; font-weight: 800; letter-spacing: -5px; }
+  #logo .sub { font-size: 40px; color: #d9d4cc; margin-top: 18px; font-weight: 500; height: 52px; line-height: 52px; }
+
+  /* app device */
+  #app { left: 0; top: 0; width: 1920px; height: 1080px; perspective: 2200px; perspective-origin: 50% 30%; }
+  #device { position: absolute; left: 240px; top: 34px; width: 1440px; height: 846px; border-radius: 16px; overflow: hidden;
+            background: #fff; box-shadow: 0 40px 120px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.08);
+            transform-origin: 50% 0%; }
+  #bar { height: 36px; background: #e9e7e3; display: flex; align-items: center; padding: 0 16px; gap: 9px; }
+  #bar i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  #bar .url { margin-left: 18px; flex: 1; height: 22px; border-radius: 11px; background: #fff; color: #555; font-size: 13px;
+              display: flex; align-items: center; padding: 0 14px; font-family: 'Segoe UI', Inter, sans-serif; }
+  #view { position: relative; width: 1440px; height: 810px; overflow: hidden; background: #f3f3f1; }
+  #view img { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; opacity: 0; }
+  #cursor { position: absolute; left: 0; top: 0; width: 34px; height: 34px; z-index: 5; transform-origin: 0 0; }
+  #ripple { position: absolute; z-index: 4; border-radius: 50%; border: 4px solid #fb923c; }
+  #ring { position: absolute; z-index: 4; border-radius: 12px; border: 5px solid #f97316;
+          box-shadow: 0 0 0 9999px rgba(15,17,20,0); }
+
+  /* captions */
+  #cap { left: 0; right: 0; top: 912px; height: 120px; display: flex; align-items: center; justify-content: center;
+         font-size: 50px; font-weight: 700; text-align: center; letter-spacing: -.3px; }
+  #cap .hl { color: #fb923c; }
+
+  /* end card */
+  #end { left: 0; right: 0; top: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  #end .mark { display: flex; align-items: center; gap: 24px; }
+  #end .mark svg { width: 96px; height: 96px; fill: #fb923c; filter: drop-shadow(0 0 24px rgba(251,146,60,.4)); }
+  #end .wordmark { font-size: 116px; font-weight: 800; letter-spacing: -3px; }
+  #end .tag { font-size: 40px; color: #e9e6e0; margin-top: 22px; font-weight: 500; }
+  #end .url { margin-top: 48px; font-size: 30px; font-weight: 600; color: #0f1114; background: #fb923c; padding: 16px 30px; border-radius: 14px; }
+  #end .small { margin-top: 36px; font-size: 26px; color: #a9a49c; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="fx" width="1920" height="1080"></canvas>
+
+  <div id="hook" class="abs">
+    <div class="kicker" id="h-kicker"></div>
+    <div class="num" id="h-num">1.0×</div>
+    <div class="line" id="h-line"></div>
+    <div class="small" id="h-small"></div>
+  </div>
+
+  <div id="chart" class="abs">
+    <div class="ctitle" id="c-title"></div>
+    <div class="legend" id="c-legend">
+      <span id="lg-m"><i style="background:#c3c8cf"></i>MODIS</span>
+      <span id="lg-v"><i style="background:#f97316"></i>VIIRS, raw</span>
+      <span id="lg-h"><i style="background:#60a5fa"></i>VIIRS, harmonized by FireBridge</span>
+    </div>
+    <svg id="c-svg" width="1620" height="640"></svg>
+  </div>
+
+  <div id="logo" class="abs">
+    <div class="mark"><svg viewBox="0 0 32 32"><path d="M16 2c2 6 9 9 9 17a9 9 0 0 1-18 0c0-5 3-7 4-11 1 3 3 4 3 4s-1-5 2-10z"/></svg>
+      <div class="wordmark" id="l-word">FireBridge</div></div>
+    <div class="sub" id="l-sub"></div>
+  </div>
+
+  <div id="app" class="abs">
+    <div id="device">
+      <div id="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i>
+        <div class="url">firebridge.graycliff-49f97f4e.northcentralus.azurecontainerapps.io</div></div>
+      <div id="view">
+        <div id="ring"></div>
+        <div id="ripple"></div>
+        <svg id="cursor" viewBox="0 0 24 24"><path d="M4 2l15 11-7 1-4 7z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div id="cap" class="abs"></div>
+
+  <div id="end" class="abs">
+    <div class="mark"><svg viewBox="0 0 32 32"><path d="M16 2c2 6 9 9 9 17a9 9 0 0 1-18 0c0-5 3-7 4-11 1 3 3 4 3 4s-1-5 2-10z"/></svg>
+      <div class="wordmark">FireBridge</div></div>
+    <div class="tag" id="e-tag"></div>
+    <div class="url" id="e-url">firebridge.graycliff-49f97f4e.northcentralus.azurecontainerapps.io</div>
+    <div class="small" id="e-small">NASA Space Apps Challenge 2026 · Data: NASA FIRMS active fires (MODIS + VIIRS)</div>
+  </div>
+</div>
+
+<script>
+// ------------------------------------------------------------------ timeline (seconds)
+const DURATION = 29.0;
+const T = {
+  hook: [0, 3.05], chart: [3.0, 9.65], logo: [9.6, 11.7], app: [11.45, 26.6], end: [26.4, DURATION],
+};
+// captions shown along the bottom (also written to video_subtitles.srt by render.py)
+const CAPTIONS = [
+  [3.15, 4.95, "Two satellite eras: MODIS since 2001, VIIRS since 2012."],
+  [4.95, 7.35, "VIIRS sees 5–9× more hotspots, so the record <hl>jumps</hl>."],
+  [7.35, 9.5, "FireBridge puts VIIRS on the MODIS scale. <hl>2011 stands out again.</hl>"],
+  [11.95, 14.2, "Pick an area. See where it burned."],
+  [14.2, 17.55, "Replay the fire season, month by month."],
+  [17.65, 21.05, "A burning calendar for any area, <hl>2001 → today</hl>."],
+  [21.15, 23.15, "Is this month unusual? Compared with 20 years of normal."],
+  [23.25, 25.25, "Each new fire ranked against every fire here since 2001."],
+  [25.35, 26.35, "Download hotspots as CSV, GeoJSON or KML."],
+];
+// on-screen text outside the caption bar (for the subtitle file)
+const SCREEN_TEXT = [
+  [0.2, 3.0, "West Texas & northern Mexico, spring 2011: 11.6× its normal fire activity."],
+  [9.9, 11.6, "FireBridge: a harmonized fire calendar, 2001 → today."],
+  [26.7, 29.0, "FireBridge. One consistent fire record from MODIS + VIIRS. NASA Space Apps 2026."],
+];
+
+// ------------------------------------------------------------------ helpers
+const $ = (id) => document.getElementById(id);
+const clamp01 = (x) => Math.max(0, Math.min(1, x));
+const lerp = (a, b, p) => a + (b - a) * p;
+const easeOut = (p) => 1 - Math.pow(1 - clamp01(p), 3);
+const easeInOut = (p) => { p = clamp01(p); return p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; };
+const easeOutBack = (p) => { p = clamp01(p); const c1 = 1.5, c3 = c1 + 1; return 1 + c3 * Math.pow(p - 1, 3) + c1 * Math.pow(p - 1, 2); };
+const ramp = (t, a, b) => clamp01((t - a) / (b - a));
+const window01 = (t, a, b, fi = .3, fo = .3) => Math.min(ramp(t, a, a + fi), 1 - ramp(t, b - fo, b));
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const fmt = (v) => Math.round(v).toLocaleString("en-US");
+
+// kinetic text: words rise in one after another, fade out together at the end
+const kinCache = new Map();
+function kinetic(el, text, t0, t1, t, opt = {}) {
+  const stagger = opt.stagger ?? 0.05, dur = opt.dur ?? 0.38, rise = opt.rise ?? 34;
+  if (el.dataset.k !== text) {
+    el.dataset.k = text;
+    const parts = text.split(/(<hl>.*?<\/hl>)/).filter(Boolean);
+    el.innerHTML = "";
+    parts.forEach((part) => {
+      const hl = part.startsWith("<hl>");
+      part.replace(/<\/?hl>/g, "").split(/(\s+)/).forEach((w) => {
+        const s = document.createElement("span");
+        s.className = "word" + (hl ? " hl" : ""); s.textContent = w; el.appendChild(s);
+      });
+    });
+  }
+  const out = opt.noOut ? 0 : ramp(t, t1 - 0.28, t1);
+  [...el.children].forEach((s, i) => {
+    const p = ramp(t, t0 + i * stagger / 2, t0 + i * stagger / 2 + dur);   // /2: spaces count as words
+    const e = easeOut(p);
+    s.style.opacity = String(e * (1 - out));
+    s.style.transform = `translateY(${(1 - e) * rise - out * 12}px)`;
+    s.style.filter = p < 1 ? `blur(${(1 - e) * 6}px)` : "none";
+  });
+}
+function show(el, a) { el.style.opacity = String(a); el.style.visibility = a > 0.001 ? "visible" : "hidden"; }
+
+// ------------------------------------------------------------------ data
+let SERIES = null;     // yearly totals {year, m, v, h}
+async function loadData() {
+  const ts = await (await fetch("assets/timeseries.json")).json();
+  const Y = {};
+  ts.series.forEach((r) => {
+    const y = +r.month.slice(0, 4); if (y > 2025) return;
+    Y[y] = Y[y] || { year: y, m: 0, v: 0, h: 0, hasV: false };
+    Y[y].m += r.modis_only || 0; Y[y].h += r.harmonized || 0;
+    if (r.viirs_raw != null) { Y[y].v += r.viirs_raw; Y[y].hasV = true; }
+  });
+  SERIES = Object.values(Y).sort((a, b) => a.year - b.year);
+}
+
+// ------------------------------------------------------------------ embers (background particles)
+const fx = $("fx"), ctx = fx.getContext("2d");
+const rnd = mulberry32(7);
+const EMBERS = Array.from({ length: 140 }, () => ({ x: rnd() * 1920, y: rnd() * 1080, s: 1 + rnd() * 2.6,
+  v: 18 + rnd() * 50, ph: rnd() * 6.28, w: 10 + rnd() * 30, a: .25 + rnd() * .6 }));
+function drawEmbers(t, alpha) {
+  if (alpha <= 0) return;
+  EMBERS.forEach((e) => {
+    const y = ((e.y - t * e.v) % 1180 + 1180) % 1180 - 50;
+    const x = e.x + Math.sin(t * .9 + e.ph) * e.w;
+    const flick = .6 + .4 * Math.sin(t * 6 + e.ph * 3);
+    ctx.fillStyle = `rgba(251,${120 + Math.round(60 * flick)},40,${alpha * e.a * flick})`;
+    ctx.beginPath(); ctx.arc(x, y, e.s, 0, 6.283); ctx.fill();
+  });
+}
+
+// ------------------------------------------------------------------ logo particles
+let PTS = [];
+function sampleWordmark() {
+  const c = document.createElement("canvas"); c.width = 1920; c.height = 1080;
+  const g = c.getContext("2d");
+  // same box as the DOM logo: measure it
+  const w = $("l-word").getBoundingClientRect(), m = document.querySelector("#logo .mark svg").getBoundingClientRect();
+  g.fillStyle = "#fff"; g.font = "800 160px Inter"; g.textBaseline = "alphabetic";
+  const fs = getComputedStyle($("l-word"));
+  g.font = `${fs.fontWeight} ${fs.fontSize} ${fs.fontFamily}`;
+  g.letterSpacing = fs.letterSpacing;
+  // baseline: approximate with the box (Inter ascent ~0.97em)
+  g.fillText("FireBridge", w.left, w.top + w.height * 0.76);
+  const p = new Path2D("M16 2c2 6 9 9 9 17a9 9 0 0 1-18 0c0-5 3-7 4-11 1 3 3 4 3 4s-1-5 2-10z");
+  g.save(); g.translate(m.left, m.top); g.scale(m.width / 32, m.height / 32); g.fill(p); g.restore();
+  const d = g.getImageData(0, 0, 1920, 1080).data;
+  const pts = [];
+  for (let y = 0; y < 1080; y += 5) for (let x = 0; x < 1920; x += 5) if (d[(y * 1920 + x) * 4 + 3] > 128) pts.push([x, y]);
+  const r = mulberry32(11);
+  PTS = pts.map(([x, y]) => {
+    const ang = r() * 6.283, rad = 500 + r() * 700;
+    return { x, y, sx: 960 + Math.cos(ang) * rad, sy: 560 + Math.sin(ang) * rad * .6, d: r() * .35, s: 1.4 + r() * 1.8 };
+  });
+}
+function drawLogoParticles(t) {
+  const a = window01(t, 9.6, 10.95, .15, .45);
+  if (a <= 0) return;
+  PTS.forEach((p) => {
+    const q = easeInOut(ramp(t, 9.6 + p.d, 10.45 + p.d * .5));
+    const swirl = (1 - q) * 120;
+    const x = lerp(p.sx, p.x, q) + Math.sin(p.d * 30 + t * 3) * swirl * .3;
+    const y = lerp(p.sy, p.y, q) + Math.cos(p.d * 30 + t * 3) * swirl * .3;
+    const hot = 1 - q;
+    ctx.fillStyle = `rgba(255,${Math.round(150 + 80 * q)},${Math.round(60 + 160 * q)},${a})`;
+    ctx.fillRect(x, y, p.s + hot * 1.5, p.s + hot * 1.5);
+  });
+}
+
+// ------------------------------------------------------------------ chart scene
+const CH = { x: 60, y: 30, w: 1560, h: 520, max: 42000 };
+let bars = [];
+function buildChart() {
+  const svg = $("c-svg"), NS = "http://www.w3.org/2000/svg";
+  svg.innerHTML = "";
+  const el = (n, a) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); svg.appendChild(e); return e; };
+  [10000, 20000, 30000, 40000].forEach((v) => {
+    const y = CH.y + CH.h - v / CH.max * CH.h;
+    el("line", { x1: CH.x, x2: CH.x + CH.w, y1: y, y2: y, stroke: "rgba(255,255,255,.09)", "stroke-width": 1.5, class: "grid" });
+    const tx = el("text", { x: CH.x - 14, y: y + 8, "text-anchor": "end", fill: "#8f8a83", "font-size": 22, class: "grid" });
+    tx.textContent = (v / 1000) + "k";
+  });
+  el("line", { x1: CH.x, x2: CH.x + CH.w, y1: CH.y + CH.h, y2: CH.y + CH.h, stroke: "rgba(255,255,255,.35)", "stroke-width": 2, class: "grid" });
+  const n = SERIES.length, slot = CH.w / n, bw = slot * .7;
+  bars = SERIES.map((r, i) => {
+    const x = CH.x + i * slot + (slot - bw) / 2;
+    const rect = el("rect", { x, width: bw, y: CH.y + CH.h, height: 0, rx: 5 });
+    let lab = null;
+    if ([2001, 2006, 2011, 2016, 2021, 2025].includes(r.year)) {
+      lab = el("text", { x: x + bw / 2, y: CH.y + CH.h + 38, "text-anchor": "middle", fill: "#bdb8b0", "font-size": 24, class: "grid" });
+      lab.textContent = r.year;
+    }
+    return { r, rect, x, bw, i };
+  });
+  const i12 = SERIES.findIndex((r) => r.year === 2012);
+  const sx = CH.x + i12 * slot - 1;
+  CH.marker = el("line", { x1: sx, x2: sx, y1: CH.y - 10, y2: CH.y + CH.h, stroke: "#f97316", "stroke-width": 3, "stroke-dasharray": "8 8" });
+  CH.markerT = el("text", { x: sx + 14, y: CH.y + 16, fill: "#fdba74", "font-size": 26, "font-weight": 700 });
+  CH.markerT.textContent = "2012: VIIRS takes over";
+  const b11 = bars.find((b) => b.r.year === 2011);
+  CH.b11 = b11;
+  CH.anno = el("text", { x: b11.x + b11.bw, "text-anchor": "end", fill: "#fff", "font-size": 30, "font-weight": 800 });
+  CH.anno.textContent = "2011";
+  CH.anno2 = el("text", { x: b11.x + b11.bw, "text-anchor": "end", fill: "#d9d4cc", "font-size": 24, "font-weight": 600 });
+  CH.anno2.textContent = "record season";
+}
+function renderChart(t) {
+  const a = window01(t, T.chart[0], T.chart[1], .3, .35);
+  show($("chart"), a);
+  if (a <= 0) return;
+  kinetic($("c-title"), "Hotspots per year · West Texas & northern Mexico", 3.05, 99, t, { noOut: true });
+  $("lg-m").style.opacity = ramp(t, 3.3, 3.6);
+  $("lg-v").style.opacity = ramp(t, 4.6, 4.9);
+  $("lg-h").style.opacity = ramp(t, 7.35, 7.7);
+  const morph = easeInOut(ramp(t, 7.35, 8.35));
+  bars.forEach((b) => {
+    const r = b.r; let val, col, grow;
+    if (!r.hasV) { grow = easeOutBack(ramp(t, 3.3 + b.i * .075, 3.3 + b.i * .075 + .5)); val = r.m; col = "#c3c8cf"; }
+    else {
+      const k = b.i - 11;
+      grow = easeOutBack(ramp(t, 4.6 + k * .05, 4.6 + k * .05 + .5));
+      const kd = k * .035;
+      const mp = easeInOut(ramp(t, 7.35 + kd, 8.1 + kd));
+      val = lerp(r.v, r.h, mp);
+      col = mp < 1 ? `rgb(${Math.round(lerp(249, 96, mp))},${Math.round(lerp(115, 165, mp))},${Math.round(lerp(22, 250, mp))})` : "#60a5fa";
+    }
+    const h = Math.max(0, grow) * val / CH.max * CH.h;
+    b.rect.setAttribute("y", CH.y + CH.h - h); b.rect.setAttribute("height", h); b.rect.setAttribute("fill", col);
+    b.top = CH.y + CH.h - h;
+  });
+  // 2011 highlight
+  const b = CH.b11, hi = ramp(t, 5.6, 6.0);
+  const pulse = (1 - morph) * hi;
+  b.rect.setAttribute("fill", hi > 0 ? `rgb(${Math.round(lerp(195, 255, hi))},${Math.round(lerp(200, 255, hi))},${Math.round(lerp(207, 255, hi))})` : "#c3c8cf");
+  CH.anno.setAttribute("y", b.top - 44); CH.anno2.setAttribute("y", b.top - 14);
+  CH.anno.style.opacity = hi; CH.anno2.style.opacity = hi;
+  CH.anno2.textContent = t < 7.6 ? "record season… looks ordinary" : "record season";
+  CH.anno2.setAttribute("fill", t < 7.6 ? "#fdba74" : "#d9d4cc");
+  const mk = ramp(t, 4.55, 4.85);
+  CH.marker.style.opacity = mk; CH.markerT.style.opacity = mk;
+  void pulse;
+}
+
+// ------------------------------------------------------------------ app scenes (real screenshots)
+const ASSETS = ["map_off", "map_on", ...Array.from({ length: 12 }, (_, i) => `replay_${String(i + 1).padStart(2, "0")}`),
+                "analysis", "now", "fires", "downloads"];
+const IMG = {};
+let RECTS = {};
+const VW = 1440, VH = 810, S0 = VW / 1920;
+
+function camAt(kfs, t) {          // keyframes [t, fx, fy, z]
+  if (t <= kfs[0][0]) return kfs[0].slice(1);
+  for (let i = 0; i < kfs.length - 1; i++) {
+    const [ta, ...a] = kfs[i], [tb, ...b] = kfs[i + 1];
+    if (t <= tb) { const p = easeInOut((t - ta) / (tb - ta)); return a.map((v, j) => lerp(v, b[j], p)); }
+  }
+  return kfs[kfs.length - 1].slice(1);
+}
+function camXform(c) {
+  const [fx_, fy, z] = c, S = S0 * z;
+  let tx = VW / 2 - fx_ * S, ty = VH / 2 - fy * S;
+  tx = Math.min(0, Math.max(VW - 1920 * S, tx)); ty = Math.min(0, Math.max(VH - 1080 * S, ty));
+  return { S, tx, ty, map: (x, y) => [x * S + tx, y * S + ty] };
+}
+const REPLAY0 = 14.3, REPLAY_DT = 0.265;
+const SCENES = [
+  { t0: 11.45, t1: 17.65, cam: [[11.45, 960, 540, 1.0], [12.8, 960, 540, 1.0], [14.0, 790, 560, 1.22], [17.65, 790, 600, 1.42]],
+    layers(t) {
+      if (t < REPLAY0) {
+        const sw = ramp(t, 12.8, 13.05);
+        return [["map_off", 1 - sw], ["map_on", sw]];
+      }
+      const k = Math.min(11, Math.floor((t - REPLAY0) / REPLAY_DT));
+      const f = k < 11 ? ramp(t - REPLAY0 - k * REPLAY_DT, REPLAY_DT - .08, REPLAY_DT) : 0;
+      const first = ramp(t, REPLAY0, REPLAY0 + .1);
+      const out = [[`replay_${String(k + 1).padStart(2, "0")}`, k === 0 ? first : 1 - f]];
+      if (k === 0) out.push(["map_on", 1 - first]);
+      if (k < 11) out.push([`replay_${String(k + 2).padStart(2, "0")}`, f]);
+      return out;
+    },
+    extras(t, X) {
+      // cursor: wander in -> "Hotspots" pill -> click -> play button -> click
+      const hs = RECTS.map_off.hotspots, pl = RECTS.map_on.play;
+      const P = [[11.9, 1150, 640], [12.6, hs[0] + hs[2] / 2, hs[1] + hs[3] / 2], [13.3, hs[0] + hs[2] / 2 + 6, hs[1] + hs[3] / 2 + 4],
+                 [14.0, pl[0] + pl[2] / 2, pl[1] + pl[3] / 2], [14.6, pl[0] + pl[2] / 2 + 4, pl[1] + pl[3] / 2 + 3],
+                 [15.4, 1020, 760]];
+      const cp = camAt(P, t);
+      return { cursor: { x: cp[0], y: cp[1], a: window01(t, 11.85, 15.6, .2, .4) },
+               clicks: [[12.65, hs[0] + hs[2] / 2, hs[1] + hs[3] / 2], [14.05, pl[0] + pl[2] / 2, pl[1] + pl[3] / 2]] };
+    } },
+  { t0: 17.55, t1: 21.15, cam: [[17.55, 960, 300, 1.45], [18.7, 900, 300, 1.45], [19.7, 700, 610, 1.85], [21.15, 690, 615, 1.95]],
+    layers: () => [["analysis", 1]],
+    extras(t) {
+      const k = RECTS.analysis.kf_pct, c = RECTS.analysis.cal_2011;
+      if (t < 19.2) return { ring: { r: [k[0] - 14, k[1] - 40, k[2] + 10, k[3] + 82], a: window01(t, 17.9, 19.0, .2, .25) } };
+      return { ring: { r: [c[0] - 6, c[1] - 6, c[2] + 12, c[3] + 12], a: window01(t, 19.75, 21.2, .2, .2) } };
+    } },
+  { t0: 21.05, t1: 23.25, cam: [[21.05, 960, 470, 1.38], [23.25, 960, 500, 1.48]], layers: () => [["now", 1]] },
+  { t0: 23.15, t1: 25.35, cam: [[23.15, 960, 420, 1.32], [25.35, 960, 560, 1.42]], layers: () => [["fires", 1]] },
+  { t0: 25.25, t1: 26.6, cam: [[25.25, 1180, 470, 1.9], [26.6, 1230, 470, 2.05]], layers: () => [["downloads", 1]],
+    extras(t) {
+      const d = RECTS.downloads; const order = [d.csv, d.geojson, d.kml];
+      const i = Math.min(2, Math.floor(ramp(t, 25.45, 26.35) * 3));
+      const r = order[i];
+      return { ring: { r: [r[0] - 6, r[1] - 6, r[2] + 12, r[3] + 12], a: window01(t, 25.45, 26.45, .1, .15) } };
+    } },
+];
+
+function renderApp(t) {
+  const enter = easeOut(ramp(t, 11.45, 12.45)), exit = easeInOut(ramp(t, 26.2, 26.55));
+  const a = Math.min(ramp(t, 11.5, 11.75), 1 - exit);
+  show($("app"), a);
+  if (a <= 0) return;
+  const dev = $("device");
+  dev.style.transform = `translateY(${(1 - enter) * 180 - exit * 30}px) rotateX(${(1 - enter) * 26}deg) scale(${lerp(.9, 1, enter) - exit * .05})`;
+  const ops = {}, xf = {};
+  let active = null;
+  SCENES.forEach((sc) => {
+    if (t < sc.t0 - .01 || t > sc.t1 + .01) return;
+    const isFirst = sc === SCENES[0], isLast = sc === SCENES[SCENES.length - 1];
+    const fin = isFirst ? 1 : ramp(t, sc.t0, sc.t0 + .3), fout = isLast ? 1 : 1 - ramp(t, sc.t1 - .1, sc.t1);
+    const X = camXform(camAt(sc.cam, t));
+    sc.layers(t).forEach(([n, o]) => { ops[n] = (ops[n] || 0) + o * Math.min(fin, fout); xf[n] = X; });
+    if (t >= sc.t0 + .15 && (!active || sc.t0 > active.sc.t0)) active = { sc, X };
+  });
+  ASSETS.forEach((n) => {
+    const im = IMG[n], o = ops[n] || 0;
+    im.style.opacity = String(Math.min(1, o));
+    im.style.display = o > 0 ? "block" : "none";
+    if (o > 0) im.style.transform = `translate(${xf[n].tx}px,${xf[n].ty}px) scale(${xf[n].S})`;
+  });
+  // extras: cursor, click ripple, highlight ring
+  const ex = active && active.sc.extras ? active.sc.extras(t, active.X) : {};
+  const cur = $("cursor"), rip = $("ripple"), ring = $("ring");
+  if (ex.cursor && ex.cursor.a > 0) {
+    const [x, y] = active.X.map(ex.cursor.x, ex.cursor.y);
+    let press = 0;
+    (ex.clicks || []).forEach(([tc]) => { press = Math.max(press, window01(t, tc - .05, tc + .15, .05, .1)); });
+    cur.style.transform = `translate(${x - 4}px,${y - 3}px) scale(${1 - press * .15})`;
+    show(cur, ex.cursor.a);
+  } else show(cur, 0);
+  let rp = null;
+  (ex.clicks || []).forEach(([tc, cx, cy]) => { const p = ramp(t, tc, tc + .5); if (p > 0 && p < 1) rp = [p, cx, cy]; });
+  if (rp) {
+    const [p, cx, cy] = rp, [x, y] = active.X.map(cx, cy), r = 10 + easeOut(p) * 46;
+    Object.assign(rip.style, { left: `${x - r}px`, top: `${y - r}px`, width: `${2 * r}px`, height: `${2 * r}px` });
+    show(rip, 1 - p);
+  } else show(rip, 0);
+  if (ex.ring && ex.ring.a > 0) {
+    const [x0, y0] = active.X.map(ex.ring.r[0], ex.ring.r[1]);
+    const [x1, y1] = active.X.map(ex.ring.r[0] + ex.ring.r[2], ex.ring.r[1] + ex.ring.r[3]);
+    const pop = easeOutBack(clamp01(ex.ring.a * 1.4)), pad = (1 - pop) * 20;
+    Object.assign(ring.style, { left: `${x0 - pad}px`, top: `${y0 - pad}px`, width: `${x1 - x0 + 2 * pad}px`, height: `${y1 - y0 + 2 * pad}px` });
+    show(ring, ex.ring.a);
+  } else show(ring, 0);
+}
+
+// ------------------------------------------------------------------ hook, logo, captions, end
+function renderHook(t) {
+  const a = 1 - ramp(t, 2.7, 3.05);
+  show($("hook"), a);
+  if (a <= 0) return;
+  kinetic($("h-kicker"), "West Texas & northern Mexico · spring 2011", 0.15, 99, t, { noOut: true });
+  const np = easeOut(ramp(t, 0.55, 1.75));
+  const numEl = $("h-num");
+  numEl.textContent = `${lerp(1, 11.6, np).toFixed(1)}×`;
+  numEl.style.opacity = ramp(t, 0.45, 0.7);
+  numEl.style.transform = `scale(${lerp(.82, 1, easeOutBack(ramp(t, .45, 1.1)))})`;
+  kinetic($("h-line"), "its normal fire activity", 1.15, 99, t, { noOut: true });
+  kinetic($("h-small"), "22,578 satellite fire detections in four months", 1.75, 99, t, { noOut: true, stagger: .03 });
+  $("hook").style.transform = `scale(${1 + ramp(t, 2.6, 3.05) * .06})`;
+  $("hook").style.filter = t > 2.7 ? `blur(${ramp(t, 2.7, 3.05) * 10}px)` : "none";
+}
+function renderLogo(t) {
+  const a = window01(t, 10.35, 11.5, .35, .3);
+  show($("logo"), Math.max(a, t >= 9.6 && t < 10.4 ? 0.0001 : 0));   // stay laid out for sampling
+  document.querySelector("#logo .mark").style.opacity = ramp(t, 10.35, 10.7);
+  kinetic($("l-sub"), "A harmonized fire calendar, 2001 → today", 10.6, 11.5, t, { stagger: .05 });
+  $("logo").style.transform = `scale(${1 - ramp(t, 11.2, 11.5) * .08})`;
+}
+function renderCaption(t) {
+  const c = CAPTIONS.find(([a, b]) => t >= a && t < b);
+  const el = $("cap");
+  if (!c) { el.style.opacity = "0"; return; }
+  el.style.opacity = "1";
+  kinetic(el, c[2], c[0], c[1], t, { stagger: .06, rise: 26 });
+}
+function renderEnd(t) {
+  const a = ramp(t, 26.55, 26.9) * (1 - ramp(t, 28.6, 29.0));
+  show($("end"), a);
+  if (a <= 0) return;
+  const p = easeOutBack(ramp(t, 26.55, 27.15));
+  document.querySelector("#end .mark").style.transform = `scale(${lerp(.85, 1, p)})`;
+  kinetic($("e-tag"), "One consistent fire record from MODIS + VIIRS, 2001 → today", 26.75, 99, t, { noOut: true, stagger: .045 });
+  $("e-url").style.opacity = easeOut(ramp(t, 27.3, 27.65));
+  $("e-url").style.transform = `translateY(${(1 - easeOut(ramp(t, 27.3, 27.65))) * 20}px)`;
+  $("e-small").style.opacity = ramp(t, 27.6, 27.95);
+}
+
+// ------------------------------------------------------------------ render(t)
+function render(t) {
+  ctx.clearRect(0, 0, 1920, 1080);
+  const emberA = Math.max(1 - ramp(t, 11.3, 12.0), ramp(t, 26.3, 26.9)) * (1 - ramp(t, 28.6, 29));
+  drawEmbers(t, emberA);
+  drawLogoParticles(t);
+  renderHook(t); renderChart(t); renderLogo(t); renderApp(t); renderCaption(t); renderEnd(t);
+  // fade from/to black
+  $("stage").style.filter = `brightness(${Math.min(ramp(t, 0, .25), 1 - ramp(t, 28.75, 29.0))})`;
+}
+
+// ------------------------------------------------------------------ boot
+async function boot() {
+  await document.fonts.load("800 160px Inter"); await document.fonts.load("700 50px Inter");
+  await document.fonts.load("500 40px Inter"); await document.fonts.ready;
+  RECTS = await (await fetch("assets/rects.json")).json();
+  await loadData();
+  buildChart();
+  const view = $("view");
+  await Promise.all(ASSETS.map((n) => new Promise((res) => {
+    const im = new Image(); im.src = `assets/${n}.png`; im.decoding = "sync";
+    im.onload = () => im.decode().then(res, res); im.onerror = res; IMG[n] = im; view.insertBefore(im, $("ring"));
+  })));
+  show($("logo"), 1); sampleWordmark();
+  window.READY = true;
+  const q = new URLSearchParams(location.search);
+  if (q.has("t")) { render(+q.get("t")); return; }
+  if (q.has("render")) return;          // render.py drives it
+  const t0 = performance.now();
+  const loop = () => { render(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); };
+  loop();
+}
+window.render = render; window.CAPTIONS = CAPTIONS; window.SCREEN_TEXT = SCREEN_TEXT; window.DURATION = DURATION;
+boot();
+</script>
+</body>
+</html>

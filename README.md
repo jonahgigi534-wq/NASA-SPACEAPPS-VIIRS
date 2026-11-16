@@ -2,6 +2,7 @@
 
 **Live site:** <https://firebridge.graycliff-49f97f4e.northcentralus.azurecontainerapps.io> (Azure Container Apps, see [docs/DEPLOY.md](docs/DEPLOY.md)) ·
 **Demo video (29 s):** TBD (YouTube, unlisted; file: [docs/demo.mp4](docs/demo.mp4)) ·
+**Motion reel (29 s):** [docs/demo_reel.mp4](docs/demo_reel.mp4) ·
 **Judges:** a two-minute tour of every brief item is at `/judges` on the site ·
 NASA Space Apps 2026 challenge: *Harmonization of MODIS and VIIRS Hot Spots*
 
@@ -150,6 +151,7 @@ FIRMS archives: see the `Makefile` and `pipeline/`.
 | Live FIRMS feed | `pipeline/live.py` |
 | Deploy | `Dockerfile`, `scripts/deploy_space.py`, `docs/DEPLOY.md` |
 | Demo video | `scripts/record_demo.py`, `docs/video_script.md` |
+| Motion reel | `video/capture.py`, `video/reel.html`, `video/soundtrack.py`, `video/render.py` |
 
 ## Limitations (short version)
 

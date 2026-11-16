@@ -1,0 +1,47 @@
+1
+00:00:00,200 --> 00:00:03,000
+West Texas & northern Mexico, spring 2011: 11.6× its normal fire activity.
+
+2
+00:00:03,150 --> 00:00:04,950
+Two satellite eras: MODIS since 2001, VIIRS since 2012.
+
+3
+00:00:04,950 --> 00:00:07,350
+VIIRS sees 5–9× more hotspots, so the record jumps.
+
+4
+00:00:07,350 --> 00:00:09,500
+FireBridge puts VIIRS on the MODIS scale. 2011 stands out again.
+
+5
+00:00:09,900 --> 00:00:11,600
+FireBridge: a harmonized fire calendar, 2001 → today.
+
+6
+00:00:11,950 --> 00:00:14,200
+Pick an area. See where it burned.
+
+7
+00:00:14,200 --> 00:00:17,550
+Replay the fire season, month by month.
+
+8
+00:00:17,650 --> 00:00:21,050
+A burning calendar for any area, 2001 → today.
+
+9
+00:00:21,150 --> 00:00:23,150
+Is this month unusual? Compared with 20 years of normal.
+
+10
+00:00:23,250 --> 00:00:25,250
+Each new fire ranked against every fire here since 2001.
+
+11
+00:00:25,350 --> 00:00:26,350
+Download hotspots as CSV, GeoJSON or KML.
+
+12
+00:00:26,700 --> 00:00:29,000
+FireBridge. One consistent fire record from MODIS + VIIRS. NASA Space Apps 2026.

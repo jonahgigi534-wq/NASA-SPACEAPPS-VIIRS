@@ -14,6 +14,7 @@ each working on one part of the project (data and science, backend, website and 
 | Debugging | Found and fixed bugs (for example a crash when a period had no satellite data, and a change in the FIRMS API's request limit) | Reported problems, confirmed fixes |
 | Writing | Drafted the README, the methods text, the video storyboard and the submission text | Reviewed and edited everything; the final wording is the team's responsibility |
 | Video (`scripts/record_demo.py`) | Wrote the script that captures screenshots of the site and assembles the video with ffmpeg | Reviewed the video |
+| Motion reel (`video/`, `docs/demo_reel.mp4`) | Wrote the code that captures the live site (`capture.py`), animates it with the yearly chart and titles (`reel.html`), synthesizes the music from sine waves and noise (`soundtrack.py`) and renders it (`render.py`) | Reviewed the reel |
 
 ## What AI did not do
 
@@ -22,5 +23,8 @@ each working on one part of the project (data and science, backend, website and 
   live app. A separate check (`pipeline/science_check.py`) compares the app's numbers with direct
   queries of the data.
 - **No AI-generated images or video.** The charts are drawn from the data; the video is made of
-  screenshots of the real site, the pipeline's own figures and plain text cards.
+  screenshots of the real site, the pipeline's own figures and plain text cards. The motion reel's
+  app shots are screenshots of the live site, its chart uses the live API's yearly totals, and its
+  animation and music are drawn and synthesized by our own code; no generative image, video, music
+  or voice model was used.
 - No NASA logos or mission branding are used.
