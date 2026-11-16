@@ -1,5 +1,5 @@
 // intro.js: the short "Here's the deal" opening shown before the dashboard.
-// Big lines appear word by word on a light panel. Each old line burns away (js/burn.js) before
+// Big lines appear word by word on a light panel. Each old line floats up and fades before
 // the next one, and at the end the whole page burns from the centre outward to reveal the globe
 // ("Where do you want to look?") underneath. The dashboard loads underneath while it plays. Shown on every load and every reload. Skipped when
 // someone opens a shared link (#...) fresh, but not when they reload one: the app writes the
@@ -33,7 +33,7 @@
   const SKIP_LABEL = "Skip intro";
 
   const LOADING_MS = 900, STAGGER_MS = 75, HOLD_MS = 1500, FIRST_HOLD_MS = 1300, OUT_MS = 420;
-  const LINE_BURN_MS = 900, PAGE_BURN_MS = 1800, SKIP_BURN_MS = 1000, FADE_MS = 450, PAPER = "#f7f7f7";
+  const PAGE_BURN_MS = 1800, SKIP_BURN_MS = 1000, FADE_MS = 450, PAPER = "#f7f7f7";
   const calm = !window.FireBurn || (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
   const panel = root.querySelector(".intro-panel");
   const stage = root.querySelector(".intro-stage");
@@ -57,11 +57,10 @@
     return p;
   }
 
-  // the old line burns away (or just fades, with reduced motion)
+  // the old line floats up and fades (only the final page burns)
   function burnLine(line) {
-    line.classList.add("burnt");
-    if (calm) { line.classList.add("out"); return wait(OUT_MS); }
-    return FireBurn.line(line, LINE_BURN_MS, root);
+    line.classList.add("burnt", "out");
+    return wait(OUT_MS);
   }
 
   // the end: the page catches fire in the middle and burns outward, leaving the globe
