@@ -1,8 +1,9 @@
 // intro.js: the short "Here's the deal" opening shown before the dashboard.
 // Big lines appear word by word on a light panel, then the panel lifts off the page. The
-// dashboard loads underneath while it plays. Shown on every load of the page; skipped for shared
-// links (#...), sample-data mode, ?intro=0 and automated browsers (the site checks and the video
-// recorder). ?intro=1 always shows it.
+// dashboard loads underneath while it plays. Shown on every load and every reload. Skipped when
+// someone opens a shared link (#...) fresh, but not when they reload one: the app writes the
+// current view into #... itself, so every reload has one. Also skipped in sample-data mode, with
+// ?intro=0 and in automated browsers (the site checks and the video recorder). ?intro=1 forces it.
 // The one number here (over 7x) is the raw VIIRS bias on the test years in results/metrics.json
 // (+659.69%, so 7.6 times the MODIS count).
 (() => {
@@ -11,7 +12,9 @@
   const params = new URLSearchParams(location.search);
 
   const forced = params.get("intro") === "1";
-  const skip = params.get("intro") === "0" || params.has("mock") || location.hash.length > 1
+  const nav = (performance.getEntriesByType && performance.getEntriesByType("navigation")[0]) || {};
+  const openedSharedLink = location.hash.length > 1 && nav.type !== "reload";
+  const skip = params.get("intro") === "0" || params.has("mock") || openedSharedLink
     || navigator.webdriver;
   if (skip && !forced) { root.remove(); return; }
 
