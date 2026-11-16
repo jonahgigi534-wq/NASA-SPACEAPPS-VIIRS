@@ -79,7 +79,9 @@ const GLOBE = (() => {
       pin.addEventListener("click", () => choose(r));
       new maplibregl.Marker({ element: pin }).setLngLat(centre(r)).addTo(map);
     });
-    map.once("load", spin);
+    // start turning only once the opening story has lifted, so the first thing seen is the Americas
+    const startSpin = () => (document.getElementById("intro") ? setTimeout(startSpin, 250) : spin());
+    map.once("load", startSpin);
   }
 
   function renderChoices() {
