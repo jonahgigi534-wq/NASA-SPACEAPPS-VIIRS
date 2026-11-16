@@ -15,7 +15,7 @@
   const forced = params.get("intro") === "1";
   const nav = (performance.getEntriesByType && performance.getEntriesByType("navigation")[0]) || {};
   const openedSharedLink = location.hash.length > 1 && nav.type !== "reload";
-  const skip = params.get("intro") === "0" || params.has("mock") || openedSharedLink
+  const skip = params.get("intro") === "0" || params.has("mock") || params.has("how") || openedSharedLink
     || navigator.webdriver;
   if (skip && !forced) { root.remove(); return; }
   window.FireBridgeIntro = true;                 // js/globe.js opens the globe underneath when the story plays

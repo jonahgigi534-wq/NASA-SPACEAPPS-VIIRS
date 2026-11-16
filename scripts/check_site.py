@@ -234,7 +234,7 @@ with sync_playwright() as p:
     axe(page, "main page")
 
     # ---- methods page, mock mode, phone ------------------------------------------------------
-    page.click("text=How it works"); page.wait_for_load_state("networkidle")
+    page.click("nav a[href='/methods']"); page.wait_for_load_state("networkidle")
     ok("methods page", page.locator("table").count() >= 3 and page.locator("figure img").count() >= 6,
        page.title())
     page.screenshot(path=SHOTS / "06_methods.png", full_page=False)
@@ -256,7 +256,7 @@ with sync_playwright() as p:
     page.goto(BASE + "/?globe=1")
     page.wait_for_selector(".globe-choice", timeout=30000)
     n_choices = page.locator(".globe-choice").count()
-    region_name = page.inner_text(".globe-choice >> nth=0")
+    region_name = page.get_attribute(".globe-choice >> nth=0", "data-name")
     page.wait_for_function("window.FireBridgeApp", timeout=30000)
     page.click(".globe-choice >> nth=0")
     page.wait_for_function("document.getElementById('globe').hidden", timeout=15000)

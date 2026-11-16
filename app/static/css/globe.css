@@ -1,63 +1,199 @@
-/* globe.css: the 3D globe shown when the site opens (see js/globe.js). The reader picks one of
-   our data regions and the globe flies down into the dashboard map. */
+/* globe.css: the opening "Where do you want to look?" screen (js/globe.js + js/space.js).
+   Earth (NASA Blue Marble on a MapLibre globe) floats in space. Pick a region to fly into the
+   dashboard, or scroll down: the globe drifts away and glowing embers rise one at a time, each a
+   piece of "how it works" you can click open. The screen is its own scroll container; a sticky
+   stage stays on screen while the scroll position drives the scene. */
 html.globe-on { overflow: hidden; }
 .globe {
-  position: fixed; inset: 0; z-index: 9000; overflow: hidden;
-  background: radial-gradient(120% 90% at 50% 100%, #ffffff 0%, #f7f7f7 55%, #eef0f3 100%);
+  --space: #04050a; --ink: #f1ede6; --muted: rgba(241, 237, 230, .62); --fire: #ff7a1a; --fire-deep: #c2410c;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  position: fixed; inset: 0; z-index: 9000; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  background: var(--space); color: var(--ink);
   font-family: "Open Runde", ui-rounded, "SF Pro Rounded", Inter, system-ui, sans-serif;
-  color: #111; -webkit-font-smoothing: antialiased;
+  -webkit-font-smoothing: antialiased; scrollbar-width: none;
   transition: opacity .8s ease;
 }
+.globe::-webkit-scrollbar { display: none; }
 .globe[hidden] { display: none; }
 .globe.out { opacity: 0; pointer-events: none; }
-/* The globe sits low and runs off the bottom of the screen, under the title and buttons. While
-   flying in, its box slides up to cover the screen. By id: MapLibre's own CSS sets position:
-   relative on the class. */
-#globe-map { position: absolute; left: 0; right: 0; top: 26vh; height: 100vh; transition: top 3.4s cubic-bezier(.4, 0, .2, 1); }
-.globe.flying #globe-map { top: 0; }
+
+.space-track { position: relative; height: 100vh; }
+.space-stage { position: sticky; top: 0; height: 100vh; height: 100dvh; overflow: hidden; }
+.space-hero { position: absolute; inset: 0; }
+.space-stars, .space-embers { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+.space-embers { z-index: 3; }
+
+/* warm light behind the Earth, as if lit by the fires on it */
+.space-glow {
+  position: absolute; left: 50%; top: 64%; width: 120vh; height: 120vh; border-radius: 50%; pointer-events: none;
+  transform: translate(-50%, -50%) translateY(var(--globe-y, 0px)) scale(var(--globe-s, 1));
+  background: radial-gradient(closest-side, rgba(255, 122, 26, .26), rgba(194, 65, 12, .10) 55%, transparent 72%);
+  opacity: var(--globe-o, 1);
+}
+
+/* The globe: centred a little below the middle, under the title and buttons. While flying in, its
+   box slides up to cover the screen. By id: MapLibre's own CSS sets position: relative on the class. */
+#globe-map {
+  position: absolute; left: 0; right: 0; top: 14vh; height: 100vh; z-index: 1;
+  transform: translateY(var(--globe-y, 0px)) scale(var(--globe-s, 1)); opacity: var(--globe-o, 1);
+  transform-origin: 50% 50%;
+}
+.globe.flying #globe-map { top: 0; transform: none; opacity: 1; transition: top 3.4s cubic-bezier(.4, 0, .2, 1); }
 .globe-map canvas { outline: none; transition: filter 2.6s ease; }
 /* while flying in, fade the globe's colours to the dashboard map's quiet grey so the hand-over is seamless */
 .globe.flying .globe-map canvas { filter: grayscale(.9) contrast(.9) brightness(1.07); }
+.globe.flying { background: #f3f3f1; transition: background 2.4s ease, opacity .8s ease; }
+.globe.flying .space-stars, .globe.flying .space-embers, .globe.flying .space-glow, .globe.flying .space-hud,
+.globe.flying .space-kicker, .globe.flying .space-finale, .globe.flying .space-progress { opacity: 0 !important; transition: opacity .6s ease; }
 .globe .maplibregl-ctrl-attrib { font: 11px/1.4 Inter, system-ui, sans-serif; }
+/* the map credit belongs to the big globe; it fades out with the title once the globe shrinks away */
+.globe .maplibregl-ctrl-bottom-right { opacity: var(--ui-o, 1); }
 
+/* ---------- title and the three region embers ---------- */
 .globe-ui {
-  position: absolute; left: 0; right: 0; top: 0; padding: clamp(28px, 7vh, 72px) 20px 0;
-  display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center;
+  position: absolute; left: 0; right: 0; top: 0; z-index: 4; padding: clamp(22px, 6vh, 64px) 20px 0;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
   pointer-events: none;                       /* the globe underneath stays draggable */
-  transition: opacity .5s ease, transform .6s cubic-bezier(.4, 0, .2, 1);
+  opacity: var(--ui-o, 1); transform: translateY(var(--ui-y, 0px));
 }
 .globe-ui > * { pointer-events: auto; }
-.globe-ui.out { opacity: 0; transform: translateY(-18px); pointer-events: none; }
-.globe-ui.out > * { pointer-events: none; }
-.globe-title {
-  margin: 0; font-weight: 700; font-size: clamp(34px, 5.4vw, 68px);
-  line-height: .98; letter-spacing: -.04em; text-wrap: balance;
-}
-.globe-sub { margin: 0; font-weight: 500; font-size: clamp(15px, 1.5vw, 18px); color: #6b6b6b; max-width: 30em; }
-.globe-choices { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 8px; }
+.globe-ui.out { opacity: 0 !important; transition: opacity .5s ease; }
+.globe-ui.out > *, .globe-ui.hidden > * { pointer-events: none; }
+.globe-title { margin: 0; font-weight: 700; font-size: clamp(30px, 4.6vw, 60px); line-height: .98; letter-spacing: -.04em; text-wrap: balance; }
+.globe-sub { margin: 0; font-weight: 500; font-size: clamp(14px, 1.4vw, 17px); color: var(--muted); max-width: 30em; }
+.globe-choices { display: flex; justify-content: center; gap: clamp(22px, 5vw, 64px); margin-top: 14px; }
 .globe-choice {
-  display: inline-flex; align-items: center; gap: 10px;
-  font: 700 16px/1 "Open Runde", Inter, system-ui, sans-serif; color: #111;
-  background: #fff; border: 0; border-radius: 999px; padding: 14px 20px 14px 16px; cursor: pointer;
-  box-shadow: 0 2px 10px rgba(20, 24, 32, .14);
-  transition: transform .2s ease, box-shadow .2s ease, background .2s ease, color .2s ease;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; background: none; border: 0; padding: 4px;
+  color: var(--ink); cursor: pointer; font: 600 12.5px/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase;
 }
-.globe-choice::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: #ed5a0c; flex: none; }
-.globe-choice:hover, .globe-choice:focus-visible { transform: translateY(-2px); background: #111; color: #fff; box-shadow: 0 10px 26px rgba(20, 24, 32, .26); }
-.globe-choice:focus-visible, .globe-skip:focus-visible { outline: 2px solid #ed5a0c; outline-offset: 3px; }
+.globe-choice .orb {
+  width: clamp(46px, 5.6vw, 64px); aspect-ratio: 1; border-radius: 50%; position: relative;
+  background: radial-gradient(circle at 42% 38%, #fff3c4 0%, #ffb347 18%, #ff7a1a 38%, #c2410c 62%, #3a1408 100%);
+  box-shadow: 0 0 22px 4px rgba(255, 122, 26, .45), 0 0 60px 12px rgba(255, 90, 10, .18);
+  animation: orb-breathe 3.2s ease-in-out infinite; transition: transform .25s ease, box-shadow .25s ease;
+}
+.globe-choice:nth-child(2) .orb { animation-delay: -1.1s; }
+.globe-choice:nth-child(3) .orb { animation-delay: -2.2s; }
+.globe-choice:hover .orb, .globe-choice:focus-visible .orb {
+  transform: scale(1.14); box-shadow: 0 0 30px 8px rgba(255, 140, 40, .7), 0 0 90px 22px rgba(255, 90, 10, .3);
+}
+.globe-choice:focus-visible { outline: 2px solid var(--fire); outline-offset: 6px; border-radius: 12px; }
+@keyframes orb-breathe { 50% { box-shadow: 0 0 28px 7px rgba(255, 122, 26, .6), 0 0 70px 16px rgba(255, 90, 10, .24); } }
+
+/* ---------- corner text (the HUD) ---------- */
+.space-hud { position: absolute; inset: 0; z-index: 5; pointer-events: none; font: 500 12.5px/1.5 var(--mono); color: rgba(241, 237, 230, .8); }
+.space-hud > * { position: absolute; pointer-events: auto; }
+.hud-tl { left: clamp(16px, 5vw, 72px); top: clamp(18px, 5vh, 56px); opacity: var(--ui-o, 1); }
+.hud-tr { right: clamp(16px, 5vw, 72px); top: clamp(18px, 5vh, 56px); text-align: right; max-width: 21em; opacity: var(--ui-o, 1); }
+.hud-bl { left: clamp(16px, 5vw, 72px); bottom: clamp(18px, 5vh, 52px); opacity: var(--hint-o, 1); }
+.hud-br { right: clamp(16px, 5vw, 72px); bottom: clamp(30px, 5vh, 56px); }
+.hud-brand { display: flex; align-items: center; gap: 8px; font: 700 20px/1 "Open Runde", Inter, system-ui, sans-serif; color: #fff; letter-spacing: -.02em; margin-bottom: 10px; }
+.hud-brand svg { width: 20px; height: 20px; fill: var(--fire); }
+.hud-k { color: var(--fire); }
+.hud-tr p, .hud-tl p, .hud-bl p { margin: 0; }
+.hud-tr .hud-k { display: block; margin-bottom: 8px; }
+.hud-bl .hud-arrow { display: inline-block; animation: hint-bob 1.8s ease-in-out infinite; }
+@keyframes hint-bob { 50% { transform: translateY(4px); } }
 .globe-skip {
-  font: 500 14px/1 "Open Runde", Inter, system-ui, sans-serif; color: #6b6b6b;
-  background: none; border: 0; padding: 10px 14px; border-radius: 999px; cursor: pointer;
+  font: 500 12.5px/1 var(--mono); color: var(--ink); background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .22);
+  padding: 10px 14px; border-radius: 4px; cursor: pointer; transition: background .2s ease, border-color .2s ease;
 }
-.globe-skip:hover { color: #111; background: rgba(0, 0, 0, .06); }
+.globe-skip:hover { background: rgba(255, 122, 26, .18); border-color: var(--fire); }
+.globe-skip:focus-visible, .space-btn:focus-visible { outline: 2px solid var(--fire); outline-offset: 3px; }
+
+/* ---------- "how it works": the rising embers ---------- */
+.space-kicker {
+  position: absolute; left: 0; right: 0; top: clamp(18px, 5vh, 56px); z-index: 4; text-align: center; pointer-events: none;
+  font: 500 12.5px/1.5 var(--mono); color: var(--muted); opacity: var(--kick-o, 0); margin: 0;
+}
+.space-kicker b { display: block; color: var(--ink); font: 700 clamp(20px, 2.4vw, 28px)/1.1 "Open Runde", Inter, system-ui, sans-serif; letter-spacing: -.02em; margin-top: 4px; }
+.ember-list { list-style: none; margin: 0; padding: 0; position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+.ember-hit {
+  position: absolute; left: 0; top: 0; width: 10px; height: 10px; border-radius: 50%; padding: 0; border: 0;
+  background: transparent; cursor: pointer; pointer-events: auto; visibility: hidden; color: transparent;
+}
+.ember-hit.on { visibility: visible; }
+.ember-hit:focus-visible { outline: 2px dashed var(--fire); outline-offset: 6px; }
+.ember-hit .ember-card-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.space-finale {
+  position: absolute; left: 0; right: 0; bottom: clamp(26px, 8vh, 80px); z-index: 4; text-align: center;
+  opacity: var(--fin-o, 0); pointer-events: none; padding: 0 20px;
+}
+.space-finale.on { pointer-events: auto; }
+.space-finale h2 { margin: 6px 0 16px; font-weight: 700; font-size: clamp(24px, 3.2vw, 40px); letter-spacing: -.03em; }
+.space-finale .hud-k { font: 500 12.5px/1 var(--mono); }
+.space-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.space-btn {
+  font: 600 13px/1 var(--mono); letter-spacing: .04em; color: var(--ink); background: rgba(255, 255, 255, .06);
+  border: 1px solid rgba(255, 255, 255, .25); border-radius: 4px; padding: 13px 18px; cursor: pointer;
+  transition: background .2s ease, border-color .2s ease; text-decoration: none; display: inline-block;
+}
+.space-btn:hover { border-color: var(--fire); background: rgba(255, 122, 26, .16); }
+.space-btn.primary { background: var(--fire-deep); border-color: var(--fire-deep); color: #fff; }
+.space-btn.primary:hover { background: var(--fire); border-color: var(--fire); }
+
+/* scroll position, a thin bar on the right edge */
+.space-progress { position: absolute; right: 10px; top: 30vh; height: 40vh; width: 2px; background: rgba(255, 255, 255, .12); z-index: 5; pointer-events: none; }
+.space-progress i { position: absolute; left: 0; top: 0; width: 2px; height: 100%; background: var(--fire); transform-origin: top; transform: scaleY(var(--prog, 0)); }
+
+/* ---------- an opened ember: the dark summary panel ---------- */
+.ember-panel {
+  position: fixed; inset: 0; z-index: 9500; overflow-y: auto; background: rgba(4, 5, 10, .86);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  opacity: 0; transition: opacity .35s ease; color: var(--ink);
+}
+.ember-panel[hidden] { display: none; }
+.ember-panel.on { opacity: 1; }
+.ember-panel-col { max-width: 560px; margin: 0 auto; padding: clamp(70px, 14vh, 140px) 22px 80px; font: 400 15px/1.65 var(--mono); }
+.ember-panel .hud-k { display: block; font-size: 12.5px; margin: 26px 0 10px; }
+.ember-panel .hud-k:first-child { margin-top: 0; }
+.ember-panel h2 { font: 700 clamp(28px, 3.6vw, 40px)/1.05 "Open Runde", Inter, system-ui, sans-serif; letter-spacing: -.03em; margin: 0 0 6px; }
+.ember-panel .ember-tag { color: var(--muted); font-size: 12.5px; letter-spacing: .06em; margin: 0; }
+.ember-panel p { margin: 0 0 12px; color: rgba(241, 237, 230, .9); }
+.ember-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .14); margin: 6px 0 4px; }
+.ember-fact { background: var(--space); padding: 12px 14px; }
+.ember-fact span { display: block; font-size: 12px; color: var(--muted); line-height: 1.4; }
+.ember-fact b { display: block; font: 700 22px/1.2 "Open Runde", Inter, system-ui, sans-serif; color: #fff; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.ember-links { display: flex; gap: 10px; flex-wrap: wrap; }
+.ember-close {
+  position: fixed; top: clamp(16px, 4vh, 40px); right: clamp(16px, 4vw, 56px); z-index: 2;
+  font: 600 13px/1 var(--mono); color: var(--ink); background-color: transparent; border: 0; padding: 12px 16px; cursor: pointer;
+  /* the kit's corner brackets */
+  background-image: linear-gradient(currentColor, currentColor), linear-gradient(currentColor, currentColor), linear-gradient(currentColor, currentColor), linear-gradient(currentColor, currentColor),
+    linear-gradient(currentColor, currentColor), linear-gradient(currentColor, currentColor), linear-gradient(currentColor, currentColor), linear-gradient(currentColor, currentColor);
+  background-size: 8px 1px, 1px 8px, 8px 1px, 1px 8px, 8px 1px, 1px 8px, 8px 1px, 1px 8px;
+  background-position: 0 0, 0 0, 100% 0, 100% 0, 0 100%, 0 100%, 100% 100%, 100% 100%; background-repeat: no-repeat;
+}
+.ember-close:hover { color: var(--fire); }
+.ember-close:focus-visible { outline: 2px solid var(--fire); outline-offset: 2px; }
 
 /* a pulsing dot on the globe for each region */
-.globe-pin { width: 18px; height: 18px; border-radius: 50%; background: #ed5a0c; border: 3px solid #fff; cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, .35); position: relative; padding: 0; }
-.globe-pin::after { content: ""; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid #ed5a0c;
+.globe-pin { width: 16px; height: 16px; border-radius: 50%; background: #ff7a1a; border: 2px solid #fff3c4; cursor: pointer;
+  box-shadow: 0 0 12px 3px rgba(255, 122, 26, .7); position: relative; padding: 0; }
+.globe-pin::after { content: ""; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid #ff7a1a;
   animation: globe-pulse 1.8s ease-out infinite; }
 @keyframes globe-pulse { from { transform: scale(1); opacity: .9; } to { transform: scale(3.2); opacity: 0; } }
 .globe.flying .globe-pin { opacity: 0; transition: opacity .4s ease; }
+
+/* ---------- calm mode (reduced motion): no choreography, the embers become a list of cards ---------- */
+.globe.calm .space-track { height: auto !important; }
+.globe.calm .space-stage { position: relative; height: auto; min-height: 100vh; overflow: visible; padding-bottom: 60px; }
+.globe.calm .space-hero { position: relative; height: 100vh; overflow: hidden; }
+.globe.calm #globe-map { height: 86vh; }
+.globe.calm .space-embers, .globe.calm .space-progress { display: none; }
+.globe.calm .space-kicker { position: relative; top: auto; opacity: 1; margin: 30px 0 18px; }
+.globe.calm .ember-list { position: relative; inset: auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; padding: 0 clamp(16px, 5vw, 72px); }
+.globe.calm .ember-hit {
+  position: relative; visibility: visible; width: 100%; height: auto; transform: none !important; border-radius: 10px; color: var(--ink);
+  text-align: left; padding: 16px 18px 16px 52px; border: 1px solid rgba(255, 255, 255, .16); background: rgba(255, 255, 255, .04);
+}
+.globe.calm .ember-hit::before { content: ""; position: absolute; left: 16px; top: 18px; width: 22px; height: 22px; border-radius: 50%;
+  background: radial-gradient(circle at 42% 38%, #fff3c4, #ff7a1a 40%, #7a2306 100%); box-shadow: 0 0 14px rgba(255, 122, 26, .6); }
+.globe.calm .ember-hit .ember-card-text { position: static; width: auto; height: auto; clip: auto; overflow: visible; white-space: normal; display: block; font: 600 16px/1.3 Inter, system-ui, sans-serif; }
+.globe.calm .ember-hit .ember-card-text small { display: block; font: 500 12px/1.4 var(--mono); color: var(--muted); margin-top: 4px; }
+.globe.calm .space-finale { position: relative; bottom: auto; opacity: 1; pointer-events: auto; margin-top: 36px; }
+.globe.calm .hud-bl .hud-arrow { animation: none; }
 
 /* "Regions" pill on the dashboard that brings the globe back */
 .rail-globe {
@@ -70,10 +206,19 @@ html.globe-on { overflow: hidden; }
 .rail-globe svg { width: 16px; height: 16px; flex: none; }
 
 @media (max-width: 640px) {
-  .globe-choice { font-size: 15px; padding: 12px 16px 12px 13px; }
+  .hud-tr, .hud-tl p:not(.hud-brand) { display: none; }
+  .hud-tl { top: 16px; }
+  .globe-ui { padding-top: 64px; }
+  .hud-bl { font-size: 11px; bottom: 22px; max-width: 42%; }
+  .hud-br { bottom: 18px; }
+  .globe-skip { font-size: 11.5px; padding: 9px 10px; }
+  .globe-choices { gap: 18px; }
+  .globe-choice { font-size: 11px; }
+  #globe-map { top: 20vh; }
+  .space-glow { top: 70%; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .globe, .globe-ui, .globe-map canvas, #globe-map { transition: none; }
-  .globe-pin::after { animation: none; }
+  .globe, .globe-ui, .globe-map canvas, #globe-map, .ember-panel { transition: none; }
+  .globe-pin::after, .globe-choice .orb, .hud-bl .hud-arrow { animation: none; }
 }
-@media print { .globe { display: none; } }
+@media print { .globe, .ember-panel { display: none; } }

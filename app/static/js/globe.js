@@ -2,16 +2,21 @@
 // the globe flies down to it, then fades into the dashboard map, which is already looking at the
 // same place. It opens whenever the opening story plays (js/intro.js), with ?globe=1, or from the
 // "Pick a region on the globe" button on the dashboard; ?globe=0 turns it off.
-// The globe is MapLibre GL JS (loaded only when needed) drawing OpenStreetMap tiles. If it can't
-// load or the browser has no WebGL, the region buttons still work without the globe.
+// The globe is MapLibre GL JS (loaded only when needed) drawing NASA's Blue Marble from space and
+// OpenStreetMap once it zooms in. If it can't load or the browser has no WebGL, the region buttons
+// still work without the globe. The space around it (stars, the "how it works" embers you reach by
+// scrolling) is js/space.js.
 const GLOBE = (() => {
   const root = document.getElementById("globe");
   if (!root) return { open() {} };
   const params = new URLSearchParams(location.search);
   const T = { title: "Where do you want to look?", sub: "Pick a region. Spin the globe if you like.",
-              skip: "Just open the dashboard", back: "Go back to where I was" };
+              skip: "Just open the dashboard →", back: "Go back to where I was →" };
+  const SHORT = { texas: "Texas", amazon: "Amazon", australia: "Australia" };   // labels under the region embers
+  const BLUE_MARBLE = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg";
+  const space = () => window.SPACE || { onOpen() {}, onClose() {}, toTop() {} };
   const LIB = "https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.0/dist/maplibre-gl";
-  const SPIN_DEG_PER_S = 5, GLOBE_SHARE = 0.95, FLY_MS = 3400;   // FLY_MS matches the slide in globe.css
+  const SPIN_DEG_PER_S = 5, GLOBE_SHARE = 0.56, FLY_MS = 3400;   // FLY_MS matches the slide in globe.css
   const FADE_MS = 800, APP_WAIT_MS = 20000;
   const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -52,21 +57,28 @@ const GLOBE = (() => {
   const stopSpin = () => { spinning = false; };
 
   function buildMap() {
-    // a big globe: about as wide as the screen is tall (less on a narrow phone). On a globe,
+    // a globe about half as wide as the screen is tall (less on a narrow phone). On a globe,
     // MapLibre draws the world 512 * 2^zoom px around, so the globe is that / pi across.
-    const across = Math.min(window.innerHeight * GLOBE_SHARE, window.innerWidth * 1.5);
+    const across = Math.min(window.innerHeight * GLOBE_SHARE, window.innerWidth * 0.86);
     map = new maplibregl.Map({
       container: "globe-map",
       style: {
         version: 8,
         projection: { type: "globe" },
-        sources: { osm: { type: "raster", tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], tileSize: 256, maxzoom: 12,
-                          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' } },
-        layers: [{ id: "osm", type: "raster", source: "osm" }],
+        sources: {
+          earth: { type: "raster", tiles: [BLUE_MARBLE], tileSize: 256, maxzoom: 8,
+                   attribution: 'Imagery: NASA <a href="https://earthdata.nasa.gov/gibs">GIBS</a> Blue Marble' },
+          osm: { type: "raster", tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], tileSize: 256, maxzoom: 12,
+                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' } },
+        // Earth from space; the street map fades in on the way down, matching the dashboard map
+        layers: [{ id: "earth", type: "raster", source: "earth" },
+                 { id: "osm", type: "raster", source: "osm", minzoom: 3.5, paint: { "raster-opacity": ["interpolate", ["linear"], ["zoom"], 3.5, 0, 5.5, 1] } }],
         sky: { "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 4, 1, 6, 0] },
       },
       center: [-55, -5], zoom: Math.log2((across * Math.PI) / 512),
       dragRotate: false, pitchWithRotate: false, touchPitch: false, attributionControl: { compact: true },
+      // the wheel scrolls the screen (to the embers), not the globe; on touch screens a drag scrolls too
+      scrollZoom: false, dragPan: !matchMedia("(pointer: coarse)").matches,
     });
     ["mousedown", "touchstart", "wheel"].forEach((ev) => map.getCanvas().addEventListener(ev, stopSpin, { passive: true }));
     (regions || []).forEach((r) => {
@@ -84,7 +96,13 @@ const GLOBE = (() => {
     choices.innerHTML = "";
     (regions || []).forEach((r) => {
       const b = document.createElement("button");
-      b.type = "button"; b.className = "globe-choice"; b.textContent = r.name;
+      b.type = "button"; b.className = "globe-choice"; b.dataset.name = r.name; b.title = r.name;
+      b.setAttribute("aria-label", r.name);
+      const orb = document.createElement("span");
+      orb.className = "orb"; orb.setAttribute("aria-hidden", "true");
+      const label = document.createElement("span");
+      label.textContent = SHORT[r.id] || r.name;
+      b.append(orb, label);
       const look = () => {                                    // turn the globe to face the region
         if (!map || leaving) return;
         stopSpin();
@@ -109,6 +127,7 @@ const GLOBE = (() => {
     leaving = true;
     stopSpin();
     ui.classList.add("out");
+    space().toTop();                                           // back to the globe before flying down
     const app = await appReady();
     window.scrollTo(0, 0);
     const ok = app && app.chooseRegion(r.id);
@@ -134,6 +153,7 @@ const GLOBE = (() => {
     isOpen = false;
     stopSpin();
     root.classList.add("out");
+    space().onClose();
     document.documentElement.classList.remove("globe-on");
     setTimeout(() => {
       root.hidden = true;
@@ -153,6 +173,7 @@ const GLOBE = (() => {
     root.classList.remove("out", "flying");
     root.hidden = false;
     document.documentElement.classList.add("globe-on");
+    space().onOpen();
     try {
       if (!regions) regions = (await fetch("/api/regions").then((res) => { if (!res.ok) throw new Error(res.status); return res.json(); })).regions;
     } catch { close(); return; }                               // no data yet (server waking): show the dashboard, which explains
@@ -165,6 +186,7 @@ const GLOBE = (() => {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && isOpen && !document.getElementById("intro")) close(); });
 
   const auto = window.FireBridgeIntro === true && params.get("globe") !== "0";
-  if (params.get("globe") === "1" || auto) open();
-  return { open, close };
+  if (params.get("globe") === "1" || params.has("how") || auto) open();
+  const chooseId = (id) => { const r = (regions || []).find((x) => x.id === id); if (r) choose(r); else close(); };
+  return { open, close, chooseId };
 })();
