@@ -17,6 +17,7 @@
   const skip = params.get("intro") === "0" || params.has("mock") || openedSharedLink
     || navigator.webdriver;
   if (skip && !forced) { root.remove(); return; }
+  window.FireBridgeIntro = true;                 // js/globe.js opens the globe underneath when the story plays
 
   // *word* marks the accent colour; "/" is a line break
   const isSpanish = params.get("lang") === "es";

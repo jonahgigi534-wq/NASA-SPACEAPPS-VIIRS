@@ -425,3 +425,7 @@ html { scroll-behavior: smooth; }
   .kf { padding: 6px 8px; }
   .card, .kf, .summary { border-radius: 8px; }
 }
+
+/* ---- smooth radar-style fire layer ---- */
+.fire-radar { pointer-events: none; image-rendering: auto; }
+.fire-tip { pointer-events: none; }

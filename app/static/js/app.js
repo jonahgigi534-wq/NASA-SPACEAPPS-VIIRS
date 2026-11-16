@@ -627,12 +627,12 @@
   }
 
   // ---------------------------------------------------------------- choosing an area
-  function setArea(area, label, presetIndex = null) {
+  function setArea(area, label, presetIndex = null, jump = true) {
     state.area = area;
     state.areaLabel = label;
     state.presetIndex = presetIndex;
     // on a phone the results sit below a long settings panel: jump to them after a choice
-    if (state.ready && window.innerWidth < 980) setTimeout(() => $("results").scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    if (jump && state.ready && window.innerWidth < 980) setTimeout(() => $("results").scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     document.querySelectorAll("#preset-buttons .preset").forEach((b, i) => b.setAttribute("aria-pressed", String(i === presetIndex)));
     runAll();
   }
@@ -647,6 +647,19 @@
     const area = { type: "bbox", bbox: p.bbox };
     MAP.show(area);
     setArea(area, p.name, i);
+  }
+
+  // the opening globe (js/globe.js): one whole data region, last 12 months of data
+  function chooseRegion(id) {
+    const r = (state.regions || []).find((x) => x.id === id);
+    if (!r) return false;
+    const end = new Date(state.dataEnd + "T00:00:00Z"), start = new Date(end);
+    start.setUTCFullYear(end.getUTCFullYear() - 1); start.setUTCDate(start.getUTCDate() + 1);
+    setDates(FMT.iso(start), state.dataEnd);
+    const area = { type: "bbox", bbox: r.bbox };
+    MAP.show(area);
+    setArea(area, r.name, null, false);
+    return true;
   }
 
   // ---------------------------------------------------------------- tabs
@@ -749,6 +762,7 @@
     $("dl-geojson").addEventListener("click", () => download("export/hotspots.geojson", "firebridge_hotspots.geojson", $("dl-geojson")));
     $("dl-kml").addEventListener("click", () => download("export/hotspots.kml", "firebridge_hotspots.kml", $("dl-kml")));
     $("print-briefing").addEventListener("click", printBriefing);
+    $("open-globe").addEventListener("click", () => GLOBE.open());
 
     // fire on the map
     document.querySelectorAll('input[name="mapview"]').forEach((r) => r.addEventListener("change", () => {
@@ -812,6 +826,7 @@
     wire();
     try {
       const [{ regions }, presets] = await Promise.all([API.regions(), API.presets().catch(() => [])]);
+      state.regions = regions;
       state.dataStart = regions.map((r) => r.start).sort()[0];
       state.dataEnd = regions.map((r) => r.live_end).sort().slice(-1)[0];
       ["start", "end"].forEach((id) => { $(id).min = state.dataStart; $(id).max = state.dataEnd; });
@@ -840,6 +855,7 @@
         MAP.show(area);
         setArea(area, "Central Texas");
       }
+      window.FireBridgeApp = { chooseRegion };      // the globe waits for this
     } catch (e) {
       failed(e);
     }

@@ -252,7 +252,21 @@ with sync_playwright() as p:
     page.wait_for_selector("#intro", state="detached", timeout=5000)
     ok("opening story (?intro=1) shows and can be skipped", "deal" in intro_text.lower(), intro_text)
 
-    # Spanish interface (beta): page text, numbers and the server's sentences all switch
+    # opening globe: ?globe=1 shows the region choices; picking one loads that region and the globe leaves
+    page.goto(BASE + "/?globe=1")
+    page.wait_for_selector(".globe-choice", timeout=30000)
+    n_choices = page.locator(".globe-choice").count()
+    region_name = page.inner_text(".globe-choice >> nth=0")
+    page.wait_for_function("window.FireBridgeApp", timeout=30000)
+    page.click(".globe-choice >> nth=0")
+    page.wait_for_function("document.getElementById('globe').hidden", timeout=15000)
+    page.wait_for_function("document.getElementById('kf-total').textContent !== '–'", timeout=30000)
+    ok("opening globe (?globe=1): pick a region", n_choices == 3 and area_label(page) == region_name,
+       f"{n_choices} regions, chose {area_label(page)}")
+    wheel_before = page.evaluate("MAP.view().zoom")
+    page.mouse.move(500, 400); page.mouse.wheel(0, -300); page.wait_for_timeout(900)
+    ok("mouse wheel zooms the map", page.evaluate("MAP.view().zoom") > wheel_before)
+
     page.goto(BASE + "/?lang=es")
     page.wait_for_function("document.getElementById('kf-total').textContent !== '–'", timeout=30000)
     wait_idle(page)
