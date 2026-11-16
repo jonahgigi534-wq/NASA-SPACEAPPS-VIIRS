@@ -39,7 +39,45 @@ const MAP = (() => {
       drawn.addLayer(e.layer);
       onArea(layerToArea(e.layerType, e.layer), labelFor(e.layerType));
     });
+    map.on(L.Draw.Event.DRAWSTART, () => { drawing = true; map.closePopup(); });
+    map.on(L.Draw.Event.DRAWSTOP, () => { drawing = false; });
+    map.on("click", cellPopup);
     return bounds;
+  }
+
+  // ---- click a square of the fire layer: a small card about that spot ----
+  let drawing = false;
+  const ratioWords = (v, m) => {
+    if (!(m > 0)) return v > 0 ? "No fire is normal here for these dates, so any is unusual." : "No fire here, as usual.";
+    const r = v / m;
+    if (r >= 1.15) return `<b class="pop-hot">${r >= 10 ? Math.round(r) : r.toFixed(1)}× the normal</b> for these dates.`;
+    if (r <= 0.87) return `<b class="pop-cool">${Math.round(r * 100)}% of normal</b>: quieter than usual.`;
+    return "<b>About normal</b> for these dates.";
+  };
+  function cellPopup(e) {
+    if (drawing || !grid) return;
+    const c = grid.at(e.latlng);
+    if (!c) return;
+    const d = grid.deg, half = d / 2;
+    const lat = c.lat.toFixed(2), lon = c.lon.toFixed(2);
+    const box = document.createElement("div");
+    box.className = "fire-pop";
+    box.innerHTML =
+      `<p class="pop-kicker">This ${d}° square</p>` +
+      `<p class="pop-num">${FMT.int(c.value)} <span>${grid.units}</span></p>` +
+      `<p>${ratioWords(c.value, c.median)}${c.median > 0 ? ` Normal is ${FMT.int(c.median)}, the median for the same dates in the baseline years.` : ""}</p>` +
+      `<p class="pop-fine">Centre ${lat}°, ${lon}°. Each square adds up every satellite hotspot detected inside it in your dates.</p>` +
+      `<button type="button" class="pop-btn">Look closer at this square</button>`;
+    box.querySelector(".pop-btn").addEventListener("click", () => {
+      map.closePopup();
+      const bbox = [c.lon - half, c.lat - half, c.lon + half, c.lat + half].map((v) => +v.toFixed(4));
+      drawn.clearLayers();
+      drawn.addLayer(L.rectangle([[bbox[1], bbox[0]], [bbox[3], bbox[2]]], { color: "#1d5fa8", weight: 2, fillOpacity: 0.04 }));
+      onArea({ type: "bbox", bbox }, `Square at ${lat}°, ${lon}°`);
+    });
+    if (tip) map.closeTooltip(tip);
+    L.popup({ className: "fire-popup", maxWidth: 280, minWidth: 240, offset: [0, -6], autoPanPadding: [40, 90] })
+      .setLatLng(e.latlng).setContent(box).openOn(map);
   }
 
   function labelFor(type) {
@@ -123,6 +161,7 @@ const MAP = (() => {
     const old = overlay;
     overlay = null; grid = null;
     if (tip) map.closeTooltip(tip);
+    map.closePopup();
     if (!old) return;
     const el = old.getElement();
     if (el && el.animate && !REDUCED)
@@ -234,7 +273,7 @@ const MAP = (() => {
     if (layer) {
       // a canvas element positioned and zoomed by Leaflet like an image
       overlay = L.svgOverlay(layer.canvas, layer.bounds, { interactive: false, className: "fire-radar" }).addTo(map);
-      grid = { at: layer.at, text: (c) => `<b>${FMT.int(c.value)}</b> ${units}<br>${ES ? "normal para estas fechas" : "normal for these dates"}: ${FMT.int(c.median)}` };
+      grid = { at: layer.at, deg, units, text: (c) => `<b>${FMT.int(c.value)}</b> ${units}<br>${ES ? "normal para estas fechas" : "normal for these dates"}: ${FMT.int(c.median)}` };
       if (layer.canvas.animate && !REDUCED)
         layer.canvas.animate([{ opacity: 0 }, { opacity: 1 }], { duration: FADE_MS, easing: "ease-out" });
     }

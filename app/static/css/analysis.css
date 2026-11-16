@@ -1,0 +1,151 @@
+/* analysis.css: the FireBridge analysis design system (tokens + components from the
+   "FireBridge Analysis" kit), applied only to the data part of the page: the settings card
+   (#settings) and the results section (#results). The header, map, timeline, rail, intro and
+   globe keep style.css. Loaded after style.css so these rules win where both apply. */
+
+:root {
+  --fb-bg: #f3f3f1; --fb-surface: #ffffff; --fb-surface-sunk: #f8f7f5;
+  --fb-ink: #1d1f22; --fb-muted: #5b6168; --fb-line: #e2e0dc; --fb-line-strong: #cfccc6; --fb-dark: #1f2328;
+  --fb-fire-700: #c2410c; --fb-fire-800: #9a3412; --fb-fire-400: #fb923c; --fb-fire-100: #ffedd5; --fb-fire-50: #fff1e8;
+  --fb-harm-600: #1d5fa8; --fb-harm-800: #1d4b7a; --fb-harm-50: #eef4fb;
+  --fb-font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --fb-fs-display: 48px; --fb-fs-answer: 30px; --fb-fs-title: 18px; --fb-fs-body: 16px; --fb-fs-fine: 13.5px;
+  --fb-radius: 8px; --fb-radius-card: 16px;
+  --fb-shadow: 0 1px 2px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04);
+  --fb-shadow-float: 0 12px 36px rgba(20,24,32,.22);
+  --fb-dur: 180ms;
+}
+@media (max-width: 640px) { :root { --fb-fs-display: 40px; --fb-fs-answer: 24px; --fb-fs-title: 17px; } }
+
+#settings, #results { font-family: var(--fb-font); color: var(--fb-ink); -webkit-font-smoothing: antialiased; }
+#settings :focus-visible, #results :focus-visible { outline: 3px solid var(--fb-fire-700); outline-offset: 2px; border-radius: 4px; }
+#results a, #settings a { color: var(--fb-harm-600); text-underline-offset: 2px; }
+
+/* ---------- cards ---------- */
+#settings.panel, #results .card, #results details.compare, #results .key-figures, #results .summary {
+  background: var(--fb-surface); border-radius: var(--fb-radius-card); box-shadow: var(--fb-shadow); border: 0;
+}
+#settings.panel { padding: 24px 28px; gap: 24px 32px; }
+#results .card { padding: 22px 26px; margin-bottom: 16px; }
+@media (max-width: 640px) { #settings.panel, #results .card { padding: 18px 16px; border-radius: 14px; } }
+
+/* ---------- group labels: the kit's kicker (orange, with a short rule) ---------- */
+#settings .panel-title {
+  font: 700 13.5px/1 var(--fb-font); color: var(--fb-fire-700); margin: 0 0 14px;
+  display: flex; align-items: center; gap: 8px; letter-spacing: 0;
+}
+#settings .panel-title::before { content: ""; width: 18px; height: 2px; background: currentColor; }
+#settings .mini-title { font-size: 14px; font-weight: 600; color: var(--fb-ink); }
+#settings .hint, #results .hint { font-size: var(--fb-fs-fine); color: var(--fb-muted); line-height: 1.45; }
+
+/* ---------- fields ---------- */
+#settings label, #results .compare-form label { font-size: 14px; color: var(--fb-muted); font-weight: 500; }
+#settings input[type=date], #settings input[type=number], #results .compare-form input {
+  font: 400 15px/1.2 var(--fb-font); color: var(--fb-ink); padding: 9px 10px;
+  border: 1px solid var(--fb-line-strong); border-radius: var(--fb-radius); background: #fff; min-width: 0;
+}
+#settings details.coords summary { font-weight: 600; font-size: 14px; cursor: pointer; }
+
+/* ---------- buttons ---------- */
+#settings .btn, #results .btn {
+  font: 600 14px/1.2 var(--fb-font); padding: 10px 16px; min-height: 40px; border-radius: var(--fb-radius);
+  border: 1px solid var(--fb-line-strong); background: #fff; color: var(--fb-ink);
+  transition: border-color var(--fb-dur), background var(--fb-dur), transform 80ms;
+}
+#settings .btn:hover, #results .btn:hover { border-color: var(--fb-ink); }
+#settings .btn:active, #results .btn:active { transform: translateY(1px); }
+#settings #dl-hotspots, #results .compare-form .btn {
+  background: var(--fb-fire-700); border-color: var(--fb-fire-700); color: #fff;
+}
+#settings #dl-hotspots:hover, #results .compare-form .btn:hover { background: var(--fb-fire-800); border-color: var(--fb-fire-800); }
+#settings .downloads .btn { text-align: left; justify-content: flex-start; }
+#results .btn-small { min-height: 32px; padding: 6px 11px; font-size: 13.5px; }
+#results .icon-btn { width: 34px; height: 32px; border-radius: var(--fb-radius); border: 1px solid var(--fb-line-strong); }
+#results .icon-btn:hover { border-color: var(--fb-ink); }
+
+/* ---------- segmented controls ---------- */
+#settings .segmented, #results .segmented {
+  border: 1px solid var(--fb-line-strong); border-radius: var(--fb-radius); background: #fff; padding: 2px; gap: 2px; overflow: visible;
+}
+#settings .segmented span, #results .segmented span {
+  border: 0; border-radius: 6px; padding: 7px 12px; font: 500 14px/1.2 var(--fb-font); display: block;
+  transition: background var(--fb-dur);
+}
+#results .segmented.small span { padding: 4px 10px; font-size: 13px; }
+#settings .segmented label:hover span, #results .segmented label:hover span { background: var(--fb-surface-sunk); }
+#settings .segmented input:checked + span, #results .segmented input:checked + span { background: var(--fb-dark); color: #fff; }
+
+/* ---------- results header: the answer line ---------- */
+#results .results-head h2 { font-size: var(--fb-fs-answer); line-height: 1.15; font-weight: 700; letter-spacing: -.02em; }
+#results .results-head h2::before {
+  content: "Your area"; display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  font: 700 13.5px/1 var(--fb-font); color: var(--fb-fire-700); letter-spacing: 0;
+}
+#results #range-label { font-size: 15px; color: var(--fb-muted); }
+
+/* ---------- key figures: one card, divided columns, one headline number ---------- */
+#results .key-figures { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; padding: 6px 4px; }
+#results .kf { background: none; box-shadow: none; border-radius: 0; padding: 16px 22px; gap: 2px; }
+#results .kf + .kf { border-left: 1px solid var(--fb-line); }
+#results .kf-label { font-size: 14px; font-weight: 600; color: var(--fb-muted); text-transform: none; letter-spacing: 0; }
+#results .kf-value { font-size: 26px; font-weight: 700; letter-spacing: -.015em; line-height: 1.2; font-variant-numeric: tabular-nums; }
+#results .kf:first-child .kf-value { font-size: var(--fb-fs-display); font-weight: 800; letter-spacing: -.03em; line-height: 1.05; color: var(--fb-fire-700); }
+#results .kf-value.hot { color: var(--fb-fire-700); }
+#results .kf-sub { font-size: 14px; color: var(--fb-muted); line-height: 1.4; }
+@media (max-width: 1000px) {
+  #results .key-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #results .kf:first-child { grid-column: 1 / -1; }
+  #results .kf + .kf { border-left: 0; border-top: 1px solid var(--fb-line); }
+}
+@media (max-width: 640px) { #results .key-figures { grid-template-columns: 1fr; } }
+
+/* ---------- summary: the lede ---------- */
+#results .summary { border-left: 0; padding: 18px 24px; gap: 14px; align-items: flex-start; }
+#results .summary-icon { background: var(--fb-harm-50); color: var(--fb-harm-600); width: 26px; height: 26px; font: 700 14px/1 Georgia, serif; font-style: italic; }
+#results .summary p { font-size: 17px; line-height: 1.55; max-width: 72ch; text-wrap: pretty; }
+
+/* ---------- compare ---------- */
+#results details.compare { padding: 14px 24px; }
+#results details.compare summary { font-weight: 600; cursor: pointer; outline-offset: 4px; }
+
+/* ---------- tabs: pill nav ---------- */
+#results .tabs { gap: 4px; border-bottom: 0; margin: 22px 0 14px; padding: 4px; background: #e9e7e3; border-radius: 999px; width: fit-content; max-width: 100%; }
+#results .tabs [role=tab] {
+  font: 600 14.5px/1 var(--fb-font); color: var(--fb-muted); padding: 10px 14px; border-radius: 999px; border-bottom: 0;
+  transition: background var(--fb-dur), color var(--fb-dur);
+}
+#results .tabs [role=tab]:hover { color: var(--fb-ink); background: #dedbd6; }
+#results .tabs [role=tab][aria-selected=true] { background: var(--fb-dark); color: #fff; }
+
+/* ---------- card heads, legends, tables ---------- */
+#results .card-head h3, #results .table-title { font-size: var(--fb-fs-title); font-weight: 700; letter-spacing: -.01em; }
+#results .card-head { margin-bottom: 6px; }
+#results .legend, #results .card > p { font-size: var(--fb-fs-fine); color: var(--fb-muted); }
+#results .data-table { font-size: 15px; }
+#results .data-table th { font-size: 13.5px; font-weight: 600; color: var(--fb-muted); padding: 10px 12px; border-bottom: 1px solid var(--fb-line-strong); }
+#results .data-table td { padding: 12px; border-bottom: 1px solid var(--fb-line); }
+#results .data-table tr:hover td { background: var(--fb-surface-sunk); }
+#results .data-table tr.latest td { background: var(--fb-fire-50); }
+#results .chance { border-radius: 6px; }
+
+/* ---------- map: click a fire square (the kit's dark info popover) ---------- */
+.fire-popup .leaflet-popup-content-wrapper { background: var(--fb-dark); color: #f4f2ee; border-radius: 12px; box-shadow: var(--fb-shadow-float); padding: 0; }
+.fire-popup .leaflet-popup-tip { background: var(--fb-dark); }
+.fire-popup .leaflet-popup-content { margin: 18px 18px 14px; font: 400 14px/1.45 var(--fb-font); }
+.fire-popup a.leaflet-popup-close-button { color: #c9c6c0; top: 6px; right: 6px; }
+.fire-popup a.leaflet-popup-close-button:hover { color: #fff; }
+.fire-pop p { margin: 0 0 8px; }
+.fire-pop .pop-kicker { font: 700 12.5px/1 var(--fb-font); color: var(--fb-fire-400); display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.fire-pop .pop-kicker::before { content: ""; width: 14px; height: 2px; background: currentColor; }
+.fire-pop .pop-num { font-size: 30px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1; color: #fff; font-variant-numeric: tabular-nums; margin-bottom: 6px; }
+.fire-pop .pop-num span { font-size: 14px; font-weight: 500; color: #c9c6c0; letter-spacing: 0; }
+.fire-pop b { color: #fff; }
+.fire-pop .pop-hot { color: var(--fb-fire-400); }
+.fire-pop .pop-cool { color: #b2abd2; }
+.fire-pop .pop-fine { font-size: 12.5px; color: #c9c6c0; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.18); }
+.fire-pop .pop-btn {
+  width: 100%; margin-top: 2px; font: 600 14px/1.2 var(--fb-font); padding: 9px 12px; border-radius: var(--fb-radius);
+  border: 0; background: var(--fb-fire-700); color: #fff; cursor: pointer; transition: background var(--fb-dur);
+}
+.fire-pop .pop-btn:hover { background: var(--fb-fire-800); }
+.fire-pop .pop-btn:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }

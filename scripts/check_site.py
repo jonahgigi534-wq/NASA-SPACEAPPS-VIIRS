@@ -267,6 +267,22 @@ with sync_playwright() as p:
     page.mouse.move(500, 400); page.mouse.wheel(0, -300); page.wait_for_timeout(900)
     ok("mouse wheel zooms the map", page.evaluate("MAP.view().zoom") > wheel_before)
 
+    mbox = page.locator("#map").bounding_box()
+    popped = False
+    for fy in (0.5, 0.45, 0.55, 0.4, 0.6):
+        for fx in (0.5, 0.45, 0.55, 0.4, 0.6, 0.35, 0.65):
+            page.mouse.click(mbox["x"] + mbox["width"] * fx, mbox["y"] + mbox["height"] * fy)
+            page.wait_for_timeout(150)
+            if page.locator(".fire-popup").count():
+                popped = True
+                break
+        if popped:
+            break
+    pop_text = page.inner_text(".fire-pop") if popped else ""
+    ok("click a fire square: popup explains it", popped and "hotspots" in pop_text, pop_text[:60].replace("\n", " "))
+    if popped:
+        page.keyboard.press("Escape")
+
     page.goto(BASE + "/?lang=es")
     page.wait_for_function("document.getElementById('kf-total').textContent !== '–'", timeout=30000)
     wait_idle(page)
